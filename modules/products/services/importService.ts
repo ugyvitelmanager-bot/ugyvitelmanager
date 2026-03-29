@@ -58,6 +58,7 @@ export async function importAirtableData() {
 
       const purchasePrice = parseAirtablePrice(item['Egységár'] || item['Beszerzési ár (nettó)'])
       const salePriceGross = priceMeta ? parseAirtablePrice(priceMeta['ÁFA-val növelt eladási ár']) : null
+      const isMohu = priceMeta?.['MOHU Köteles?'] === 'checked'
 
       const hasRecipe = recipesData.some(r => r['Receptazonosító'] === name)
       const productType = hasRecipe ? 'recipe_product' : (item['Kategória'] === 'Alapanyag' || item['Kategória'] === 'Segédanyag' ? 'ingredient' : 'stock_product')
@@ -70,6 +71,7 @@ export async function importAirtableData() {
         default_vat_rate_id: vat?.id,
         purchase_price_net: roundCurrency(purchasePrice),
         default_sale_price_gross: salePriceGross ? roundToForint(salePriceGross) : null,
+        is_mohu_fee: isMohu,
         is_stock_tracked: productType !== 'recipe_product',
         packaging_description: item['Kiszerelés'],
         is_active: true

@@ -8,32 +8,60 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Package, Tag, Layers, Home } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Package, Tag, Filter, Search, RotateCcw, Info } from 'lucide-react'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
-export default async function ProductsPage() {
-  const supabase = await createClient()
+interface PageProps {
+  searchParams: Promise<{
+    q?: string
+    category?: string
+    area?: string
+  }>
+}
 
-  // Lekérjük a termékeket a kapcsolt kategóriákkal és egységekkel
-  const { data: productsRaw, error } = await supabase
+export default async function ProductsPage({ searchParams }: PageProps) {
+  const supabase = await createClient()
+  const params = await searchParams
+  
+  const queryStr = params.q || ''
+  const categoryFilter = params.category || ''
+  const areaFilter = params.area || ''
+
+  // Kategóriák lekérése a szűrőhöz
+  const { data: categories } = await supabase
+    .from('categories')
+    .select('id, name, business_area')
+    .order('name')
+
+  // Termékek lekérése szűréssel
+  let query = supabase
     .from('products')
     .select(`
       *,
-      categories (name, business_area),
+      categories (id, name, business_area),
       units (symbol)
     `)
     .order('name', { ascending: true })
 
-  const products = productsRaw as any[]
-
-  if (error) {
-    return (
-      <div className="p-8 text-red-500">
-        Hiba történt a termékek betöltésekor: {error.message}
-      </div>
-    )
+  if (queryStr) {
+    query = query.ilike('name', `%${queryStr}%`)
   }
+  if (categoryFilter) {
+    query = query.eq('category_id', categoryFilter)
+  }
+  if (areaFilter) {
+    query = query.eq('categories.business_area', areaFilter)
+  }
+
+  const { data: productsRaw, error } = await query
+  const products = (productsRaw as any[]) || []
+
+  // MOHU konstans (50 Ft = 5000 fillér)
+  const MOHU_FEE = 5000
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -45,67 +73,131 @@ export default async function ProductsPage() {
             Terméklista
           </h1>
           <p className="mt-2 text-gray-500">
-            Összesen {products?.length} termék található a rendszerben (Büfé, Halas, Rendezvény).
+            Összesen {products.length} termék. Szűrés üzletágra és kategóriára.
           </p>
+        </div>
+        <div className="flex gap-2">
+          <Link href="/settings/import">
+            <Button variant="outline" size="sm">
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Adatok frissítése
+            </Button>
+          </Link>
         </div>
       </div>
 
-      {/* Table Container */}
+      {/* Filter Panel */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-xl border">
+        <div className="relative col-span-1 md:col-span-2">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <form action="/products" method="GET">
+            <Input 
+              name="q" 
+              placeholder="Keresés név alapján..." 
+              defaultValue={queryStr}
+              className="pl-10"
+            />
+            {categoryFilter && <input type="hidden" name="category" value={categoryFilter} />}
+            {areaFilter && <input type="hidden" name="area" value={areaFilter} />}
+          </form>
+        </div>
+        
+        <form action="/products" method="GET" className="flex gap-2 col-span-1 md:col-span-2">
+          {queryStr && <input type="hidden" name="q" value={queryStr} />}
+          
+          <select 
+            name="area" 
+            defaultValue={areaFilter}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            onChange={(e) => e.target.form?.submit()}
+          >
+            <option value="">Összes üzletág</option>
+            <option value="buffet">Büfé</option>
+            <option value="fish">Halas</option>
+          </select>
+
+          <select 
+            name="category" 
+            defaultValue={categoryFilter}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            onChange={(e) => e.target.form?.submit()}
+          >
+            <option value="">Összes kategória</option>
+            {categories?.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </form>
+      </div>
+
+      {/* Info Banner for MOHU */}
+      <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex items-start gap-2 text-sm text-blue-700">
+        <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        <p>
+          <strong>MOHU Betétdíj:</strong> A betétdíjas termékeknél a Bruttó ár már tartalmazza az 50 Ft-os fix állami díjat. 
+          Az önköltség számításakor és árrésnél a betétdíj nélküli árat vesszük alapul.
+        </p>
+      </div>
+
+      {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <Table>
           <TableHeader className="bg-gray-50/50">
             <TableRow>
-              <TableHead className="w-[300px] font-semibold">Termék név</TableHead>
-              <TableHead className="font-semibold">Kategória</TableHead>
+              <TableHead className="font-semibold">Termék név</TableHead>
               <TableHead className="font-semibold text-center">Üzletág</TableHead>
-              <TableHead className="font-semibold">Egység</TableHead>
+              <TableHead className="font-semibold">Kategória</TableHead>
               <TableHead className="text-right font-semibold">Beszerzési (Nettó)</TableHead>
-              <TableHead className="text-right font-semibold">Eladási (Bruttó)</TableHead>
+              <TableHead className="text-right font-semibold">Tiszta Termékár (Br.)</TableHead>
+              <TableHead className="text-right font-semibold">Összes Bruttó</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products?.map((item) => (
-              <TableRow key={item.id} className="hover:bg-gray-50/50 transition-colors">
-                <TableCell className="font-medium">
-                  <div>
-                    {item.name}
-                    {item.sku && <div className="text-xs text-muted-foreground font-light">{item.sku}</div>}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-sm">{item.categories?.name || '-'}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-center">
-                  <span className={`
-                    inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset
-                    ${item.categories?.business_area === 'buffet' 
-                      ? 'bg-blue-50 text-blue-700 ring-blue-700/10' 
-                      : 'bg-green-50 text-green-700 ring-green-700/10'}
-                  `}>
-                    {item.categories?.business_area === 'buffet' ? 'Büfé' : 'Halas'}
-                  </span>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {item.units?.symbol}
-                </TableCell>
-                <TableCell className="text-right font-mono text-sm">
-                  {item.purchase_price_net ? formatCurrency(item.purchase_price_net) : '-'}
-                </TableCell>
-                <TableCell className="text-right font-bold text-primary font-mono">
-                  {item.default_sale_price_gross ? formatCurrency(item.default_sale_price_gross) : '-'}
-                </TableCell>
-              </TableRow>
-            ))}
-            {products?.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                  Nincsenek termékek az adatbázisban. 🏁✨
-                </TableCell>
-              </TableRow>
-            )}
+            {products.map((item) => {
+              const totalGross = item.default_sale_price_gross || 0
+              const isMohu = item.is_mohu_fee
+              const cleanGross = isMohu ? totalGross - MOHU_FEE : totalGross
+
+              return (
+                <TableRow key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                  <TableCell className="font-medium">
+                    <div className="flex flex-col">
+                      <span>{item.name}</span>
+                      <span className="text-[10px] text-muted-foreground uppercase">{item.units?.symbol}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className={`
+                      inline-flex items-center rounded-full px-2 py-1 text-[10px] font-bold ring-1 ring-inset uppercase
+                      ${item.categories?.business_area === 'buffet' 
+                        ? 'bg-blue-50 text-blue-700 ring-blue-700/10' 
+                        : 'bg-green-50 text-green-700 ring-green-700/10'}
+                    `}>
+                      {item.categories?.business_area === 'buffet' ? 'Büfé' : 'Halas'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {item.categories?.name || '-'}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm opacity-80">
+                    {item.purchase_price_net ? formatCurrency(item.purchase_price_net) : '-'}
+                  </TableCell>
+                  <TableCell className={`text-right font-semibold font-mono ${isMohu ? 'text-blue-600' : ''}`}>
+                    {formatCurrency(cleanGross)}
+                  </TableCell>
+                  <TableCell className="text-right font-bold text-gray-900 font-mono">
+                    <div className="flex flex-col items-end">
+                      <span>{formatCurrency(totalGross)}</span>
+                      {isMohu && (
+                        <span className="text-[9px] bg-blue-100 text-blue-800 px-1 rounded font-bold uppercase">
+                          +50 Ft Betétdíj
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </div>
