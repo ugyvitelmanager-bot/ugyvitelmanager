@@ -6,10 +6,12 @@ import path from 'path'
 /**
  * Étlap CSV importálása:
  * Az Airtable Étlap táblájából importálja a késztermékeket (eladható tételek).
- * A Raktár CSV-ből már importált alapanyagok kerülnek hozzájuk recept-összetevőként.
  * 
- * CSV struktúra: Termék neve | Kategória | Összetétel | Összetevők | Nettó anyagköltség |
- *                Haszonkulcs | Nettó eladási Ár | ÁFA | ÁFA-val növelt eladási ár | MOHU Köteles?
+ * FONTOS: Az "Összetétel" oszlopot használjuk az alapanyagnevekhez (nem az "Összetevők"-et).
+ * Az "Összetevők" az Airtable saját linked record neveit tartalmazza, ami nem egyezik a raktár nevekkel.
+ * 
+ * Egyszerű termék: ha az Összetétel csak a terméket önmagát tartalmazza (pl. egy üdítő)
+ * Összetett termék: ha több összetevő van (pl. hotdog, pizza)
  */
 export async function importEtlapData() {
   const supabase = await createClient()
@@ -32,7 +34,6 @@ export async function importEtlapData() {
     const categories = categoriesRaw as any[]
     const existingProducts = existingProductsRaw as any[]
 
-    // Default egység: db
     const unitDb = units.find(u => u.symbol === 'db')
 
     // VAT keresés rate_percent alapján
@@ -42,38 +43,49 @@ export async function importEtlapData() {
         || vatRates.find(v => parseFloat(v.rate_percent) === 27)
     }
 
-    // Eredmény nyomkövetés
+    // Kategória keresés: kis/nagybetű független, whitespace normalizált
+    const getCategory = (catName: string) => {
+      const normalized = catName.trim().toLowerCase()
+      return categories.find(c => c.name.trim().toLowerCase() === normalized)
+    }
+
     let inserted = 0
     let skipped = 0
     let recipeCreated = 0
-    let errors: string[] = []
+    const errors: string[] = []
 
     // 3. Késztermékek importálása
     for (const row of etlapData) {
       const name = row['Termék neve'].trim()
       if (!name) continue
 
-      // Már létező termékek kihagyása
-      if (existingProducts.find(p => p.name === name)) {
+      // Már létező termékek kihagyása (névegyezés)
+      if (existingProducts.find(p => p.name.trim() === name)) {
         skipped++
         continue
       }
 
       const categoryName = row['Kategória']?.trim()
-      const category = categories.find(c => c.name === categoryName)
+      const category = getCategory(categoryName)
+      if (!category && categoryName) {
+        errors.push(`Ismeretlen kategória: "${categoryName}" → ${name}`)
+      }
+
       const vatStr = row['ÁFA']?.trim() || '27%'
       const vat = getVat(vatStr)
       const isMohu = row['MOHU Köteles?']?.trim() === 'checked'
 
-      // Árak fillérbe konvertálva (Forint * 100)
-      const purchasePriceNet = parseEtlapPrice(row['Nettó anyagköltség'])
-      const salePriceGross = roundToForint(parseEtlapPrice(row['ÁFA-val növelt eladási ár']))
+      // Árak: az étlap CSV-ben Forintban vannak (nem "Ft 2.689,50" formátumban)
+      const purchasePriceNet = parseEtlapForint(row['Nettó anyagköltség'])
+      const salePriceGross = roundToForint(parseEtlapForint(row['ÁFA-val növelt eladási ár']))
 
-      // Összetevők elemzése — ha több összetevő van, VAGY az összetevő neve eltér a termék nevétől,
-      // akkor valódi recept; ha az egyetlen összetevő maga a termék, egyszerű viszonteladási termék
-      const ingredientNamesRaw = row['Összetevők'] || ''
-      const ingredientNames = splitIngredients(ingredientNamesRaw)
-      const isSimpleProduct = ingredientNames.length === 1 && 
+      // "Összetétel" oszlop = raktár alapanyagok nevei (vesszővel elválasztva)
+      // "Összetevők" = Airtable saját linked record neve → NEM használjuk
+      const osszetetelRaw = row['Összetétel'] || ''
+      const ingredientNames = splitIngredients(osszetetelRaw)
+
+      // Egyszerű termék: ha csak 1 összetevő van ÉS az neve megegyezik a termékkel
+      const isSimpleProduct = ingredientNames.length === 1 &&
         normalize(ingredientNames[0]) === normalize(name)
 
       const productType = isSimpleProduct ? 'stock_product' : 'recipe_product'
@@ -89,7 +101,7 @@ export async function importEtlapData() {
           purchase_price_net: purchasePriceNet,
           default_sale_price_gross: salePriceGross,
           is_mohu_fee: isMohu,
-          is_stock_tracked: productType === 'stock_product',
+          is_stock_tracked: isSimpleProduct,
           is_active: true
         })
         .select()
@@ -105,7 +117,7 @@ export async function importEtlapData() {
 
       // 4. Recept létrehozása összetett termékeknél
       if (!isSimpleProduct && ingredientNames.length > 0) {
-        // Frissített termék lista lekérése (az imént feltöltöttekkel együtt)
+        // Frissített termék lista (az imént feltöltöttekkel)
         const { data: allProductsNow } = await supabase.from('products').select('id, name')
         const allProducts = allProductsNow as any[]
 
@@ -127,13 +139,15 @@ export async function importEtlapData() {
         const newRecipe = newRecipeRaw as any
         recipeCreated++
 
-        // Recept összetevők hozzáadása
-        for (const ingredientName of ingredientNames) {
-          const ingredient = allProducts.find(p => 
-            normalize(p.name) === normalize(ingredientName)
+        // Egyedi összetevők (duplikációk szűrése — Airtable sokszor ismételt neveket adott)
+        const uniqueIngredientNames = Array.from(new Set(ingredientNames.map(n => normalize(n))))
+
+        for (const ingredientNormalized of uniqueIngredientNames) {
+          const ingredient = allProducts.find(p =>
+            normalize(p.name) === ingredientNormalized
           )
           if (!ingredient) {
-            errors.push(`Nem található összetevő: "${ingredientName}" → ${name}`)
+            errors.push(`Nem található: "${ingredientNormalized}" → ${name}`)
             continue
           }
 
@@ -190,29 +204,22 @@ function splitCSVLine(line: string): string[] {
   return result.map(s => s.replace(/^"|"$/g, '').trim())
 }
 
-/**
- * Étlap árak Forintban vannak (nem "Ft 2.689,50" formátumban)
- * Pl.: "1112" → 111200 fillér
- */
-function parseEtlapPrice(priceStr: string): number {
+/** Étlap CSV árak: egyszerű egész Forint értékek → fillér */
+function parseEtlapForint(priceStr: string): number {
   if (!priceStr) return 0
-  const clean = priceStr.replace(/[^\d]/g, '')
-  const forint = parseInt(clean, 10) || 0
+  const forint = parseInt(priceStr.replace(/[^\d]/g, ''), 10) || 0
   return forint * 100
 }
 
 /**
- * Összetevők szövegének feldarabolása
- * A CSV-ben vesszővel elválasztva vannak, ezért a CSV parser már lista elemként adja
- * de az "Összetevők" oszlop maga is vesszővel tagolt értékeket tartalmaz
+ * Az "Összetétel" oszlop tartalma vesszővel elválasztott alapanyagnévsor.
+ * FONTOS: ez már a CSV parser által feldolgozott szöveg, NEM a raw CSV sor.
  */
 function splitIngredients(raw: string): string[] {
   return raw.split(',').map(s => s.trim()).filter(Boolean)
 }
 
-/**
- * Névegyeztetés: kis-nagybetű és extra szóköz független összehasonlítás
- */
+/** Kis/nagybetű és whitespace független összehasonlítás */
 function normalize(str: string): string {
   return str.toLowerCase().replace(/\s+/g, ' ').trim()
 }
