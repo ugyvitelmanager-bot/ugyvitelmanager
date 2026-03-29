@@ -32,10 +32,12 @@ export default async function ProductsPage({ searchParams }: PageProps) {
   const areaFilter = params.area || ''
 
   // Kategóriák lekérése a szűrőhöz
-  const { data: categories } = await supabase
+  const { data: categoriesRaw } = await supabase
     .from('categories')
     .select('id, name, business_area')
     .order('name')
+  
+  const categories = (categoriesRaw as any[]) || []
 
   // Termékek lekérése szűréssel
   let query = supabase

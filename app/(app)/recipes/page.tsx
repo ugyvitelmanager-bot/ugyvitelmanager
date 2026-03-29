@@ -10,6 +10,7 @@ import {
   TableRow 
 } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { BookOpen, Utensils, Info, Printer, Search } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -29,10 +30,12 @@ export default async function RecipesPage({ searchParams }: PageProps) {
   const categoryFilter = params.category || ''
 
   // Kategóriák lekérése a szűrőhöz
-  const { data: categories } = await supabase
+  const { data: categoriesRaw } = await supabase
     .from('categories')
     .select('id, name')
     .order('name')
+
+  const categories = (categoriesRaw as any[]) || []
 
   // Receptek lekérése szűrővel
   let query = supabase
