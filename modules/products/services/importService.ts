@@ -30,16 +30,22 @@ export async function importAirtableData() {
 
     if (!vatRates || !units) throw new Error('Nem sikerült lekérni az ÁFA vagy Egység törzsadatokat.')
 
-    // 3. Kategóriák gyűjtése és feltöltése
+    // 3. Kategóriák: csak az újakat szúrjuk be, a meglévőket kihagyjuk
     const uniqueCategories = Array.from(new Set(productsData.map(p => p['Kategória']).filter(Boolean)))
-    
-    // Kategóriák beszúrása (Büfé üzletághoz alapértelmezetten)
+    const { data: existingCatsRaw } = await supabase.from('categories').select('*')
+    const existingCats = (existingCatsRaw as any[]) || []
+
     for (const catName of uniqueCategories) {
-      await (supabase.from('categories') as any).insert({
-        name: catName,
-        category_type: 'product',
-        business_area: 'buffet' 
-      })
+      const alreadyExists = existingCats.find(
+        c => c.name.toLowerCase().trim() === catName.toLowerCase().trim()
+      )
+      if (!alreadyExists) {
+        await (supabase.from('categories') as any).insert({
+          name: catName,
+          category_type: 'product',
+          business_area: 'buffet'
+        })
+      }
     }
 
     const { data: categoriesRaw } = await supabase.from('categories').select('*')

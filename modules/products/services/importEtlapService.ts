@@ -59,23 +59,30 @@ export async function importEtlapData() {
       const name = row['Termék neve'].trim()
       if (!name) continue
 
-      // Már létező termékek kihagyása (névegyezés)
-      if (existingProducts.find(p => p.name.trim() === name)) {
-        skipped++
-        continue
-      }
-
+      // 3a. Sor adatainak kiolvasása
       const categoryName = row['Kategória']?.trim()
       const category = getCategory(categoryName)
-      if (!category && categoryName) {
-        errors.push(`Ismeretlen kategória: "${categoryName}" → ${name}`)
-      }
-
       const vatStr = row['ÁFA']?.trim() || '27%'
       const vat = getVat(vatStr)
       const isMohu = row['MOHU Köteles?']?.trim() === 'checked'
 
-      // Árak: az étlap CSV-ben Forintban vannak (nem "Ft 2.689,50" formátumban)
+      if (!category && categoryName) {
+        errors.push(`Ismeretlen kategória: "${categoryName}" → ${name}`)
+      }
+
+      // Már létező termékek: kategóriát és MOHU jelölést frissítjük
+      const existingProduct = existingProducts.find(p => p.name.trim() === name)
+      if (existingProduct) {
+        if (category) {
+          await (supabase.from('products') as any)
+            .update({ category_id: category.id, is_mohu_fee: isMohu })
+            .eq('id', existingProduct.id)
+        }
+        skipped++
+        continue
+      }
+
+      // Árak: az étlap CSV-ben Forintban vannak
       const purchasePriceNet = parseEtlapForint(row['Nettó anyagköltség'])
       const salePriceGross = roundToForint(parseEtlapForint(row['ÁFA-val növelt eladási ár']))
 
