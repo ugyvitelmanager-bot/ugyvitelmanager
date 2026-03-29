@@ -12,6 +12,7 @@ import {
   CalendarDays,
   BarChart3,
   Settings,
+  Database,
 } from 'lucide-react'
 
 const navigation = [
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Rendezvények', href: '/events', icon: CalendarDays },
   { name: 'Riportok', href: '/reports', icon: BarChart3 },
   { name: 'Beállítások', href: '/settings', icon: Settings },
+  { name: 'Adatbázis Import', href: '/settings/import', icon: Database },
 ]
 
 export function AppSidebar() {

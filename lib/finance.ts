@@ -28,10 +28,17 @@ export function calculateNetFromGross(grossAmount: number, vatRatePercent: numbe
 }
 
 /**
- * Kerekítés egész fillérre (integer)
+ * Kerekítés egész fillérre (integer) - Beszerzési árakhoz és számításokhoz
  */
 export function roundCurrency(value: number): number {
   return Math.round(value)
+}
+
+/**
+ * Kerekítés egész Forintra (100 fillérre) - Eladási árakhoz
+ */
+export function roundToForint(valueInFiller: number): number {
+  return Math.round(valueInFiller / 100) * 100
 }
 
 /**
@@ -85,10 +92,11 @@ export function calculateSuggestedNetPrice(costNet: number, marginPercent: numbe
 }
 
 /**
- * Javasolt bruttó ár
+ * Javasolt bruttó ár (Eladási ár egész Forintra kerekítve!)
  */
 export function calculateSuggestedGrossPrice(netPrice: number, vatRatePercent: number): number {
-  return calculateGrossFromNet(netPrice, vatRatePercent)
+  const gross = calculateGrossFromNet(netPrice, vatRatePercent)
+  return roundToForint(gross)
 }
 
 // --- Bevétel csoportosítás ---
