@@ -11,7 +11,8 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { FilterSelect } from '@/components/ui/filter-select'
-import { BookOpen, Utensils, Info, Printer, Search } from 'lucide-react'
+import { BookOpen, Utensils, Info, Printer, Search, ChefHat } from 'lucide-react'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
@@ -171,9 +172,10 @@ export default async function RecipesPage({ searchParams }: PageProps) {
                         <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Eladási Ár</div>
                         <div className="text-xl font-black text-primary">{formatCurrency(saleGross)}</div>
                       </div>
-                      <Button variant="outline" size="icon" className="hidden md:flex" title="Nyomtatás (hamarosan)">
-                        <Printer className="w-4 h-4" />
-                      </Button>
+                      <Link href={`/recipes/${recipe.id}`} className="inline-flex h-10 items-center justify-center rounded-md bg-orange-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-700 uppercase tracking-widest gap-2">
+                        <ChefHat className="w-4 h-4" />
+                        Szerkesztés
+                      </Link>
                     </div>
                   </div>
                 </CardHeader>
