@@ -1,7 +1,7 @@
 'use client'
 
 import { Menu } from 'lucide-react'
-import { logout } from '@/app/(auth)/login/actions'
+import { logout } from '@/app/login/actions'
 import {
   DropdownMenu,
   DropdownMenuContent,
