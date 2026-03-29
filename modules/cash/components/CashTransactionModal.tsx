@@ -90,7 +90,7 @@ export function CashTransactionModal() {
         }
       />
       
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-lg max-w-[95vw] shadow-2xl">
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="text-xl font-bold flex items-center gap-2 text-orange-700 uppercase tracking-tighter">
             <Wallet className="w-5 h-5" />

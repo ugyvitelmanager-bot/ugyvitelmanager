@@ -98,7 +98,7 @@ export function ZReportModal() {
         }
       />
       
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="sm:max-w-4xl max-w-[95vw] max-h-[90vh] overflow-y-auto shadow-2xl">
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="text-2xl font-bold flex items-center gap-2 text-indigo-700">
             <Calculator className="w-6 h-6" />
@@ -118,8 +118,8 @@ export function ZReportModal() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="buffet">Büfé (Főépület)</SelectItem>
-                <SelectItem value="fish">Halas (Terasz)</SelectItem>
+                <SelectItem value="buffet">Büfé</SelectItem>
+                <SelectItem value="fish">Halas</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -71,25 +71,26 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
     }
   }
 
-  const handleQuickAdd = async (tempId: string) => {
+  const handleQuickAdd = async (itemId: string) => {
     const name = prompt('Új termék neve:')
     if (!name) return
 
     setIsPending(true)
     try {
-      // Itt hívjuk a valódi mentést. Mivel a createNewMenuItem bonyolult, 
-      // most egy egyszerűsített logikát használunk, vagy emuláljuk a sikert a UI-on.
-      // Valójában a legjobb ha a createNewMenuItem-et hívjuk meg alapértelmezett értékekkel.
-      // Kategória: keresünk egyet, vagy üresen hagyjuk ha a DB engedi.
-      const res = await createNewMenuItem(name, 'any', 'stock_product', 'any') 
+      const res = await createNewMenuItem(name) 
       
-      if (res.success) {
+      if (res.success && res.product) {
         toast.success(`'${name}' sikeresen létrehozva!`)
-        // Itt újra le kellene kérni a termékeket, de most csak értesítjük a felhasználót.
-        // Hosszútávon: refreshData()
+        const newProd = { 
+          id: res.product.id, 
+          name: res.product.name, 
+          unit_id: '', 
+          units: null 
+        }
+        setLocalProducts(prev => [...prev, newProd])
+        updateItem(itemId, 'productId', res.product.id)
       } else {
-        // Ha a createNewMenuItem túl specifikus, akkor csak jelezzük a hiányt
-        toast.error('A termék rögzítéséhez használd a Termékek menüt (összetett adatok miatt).')
+        toast.error('A termék rögzítése nem sikerült.')
       }
     } catch (err) {
       toast.error('Hiba történt.')
@@ -161,7 +162,7 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
         }
       />
       
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-6xl max-w-[95vw] max-h-[90vh] overflow-y-auto shadow-2xl">
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="text-2xl font-bold flex items-center gap-2 text-emerald-700">
             <ShoppingCart className="w-6 h-6" />
@@ -226,14 +227,7 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
                   <div className="flex items-center justify-between">
                     {idx === 0 && <Label className="text-[10px] uppercase font-bold text-slate-400">Termék</Label>}
                     <button 
-                      onClick={() => {
-                        const name = prompt('Új termék neve:')
-                        if (name) {
-                          // Gyors megoldás: betesszük a listába ideiglenesen vagy alerteljük, hogy menjen a termékekhez.
-                          // De a legjobb, ha tényleg rögzítjük.
-                          toast.info('Új termék rögzítése fukció fejlesztés alatt - használd a Termékek menüt.')
-                        }
-                      }}
+                      onClick={() => handleQuickAdd(item.id)}
                       className="text-[9px] text-emerald-600 hover:underline flex items-center gap-1"
                     >
                        <Sparkles className="w-2 h-2" /> Új termék felvétele

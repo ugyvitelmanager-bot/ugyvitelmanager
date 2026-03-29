@@ -64,15 +64,9 @@ function SelectValue({ placeholder, ...props }: SelectPrimitive.Value.Props & { 
     <SelectPrimitive.Value 
       data-slot="select-value" 
       className="data-placeholder:text-muted-foreground"
+      placeholder={placeholder}
       {...props} 
-    >
-      {({ value, textValue }) => {
-        if (!value) {
-          return placeholder || ""
-        }
-        return textValue || value
-      }}
-    </SelectPrimitive.Value>
+    />
   )
 }
 
