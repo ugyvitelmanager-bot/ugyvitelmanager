@@ -311,3 +311,36 @@ export interface Profile {
   is_active: boolean
   created_at: string
 }
+
+// --- Supabase Wrapper Type ---
+export interface Database {
+  public: {
+    Tables: {
+      profiles: {
+        Row: Profile
+        Insert: Partial<Profile>
+        Update: Partial<Profile>
+      }
+      events: { Row: Event; Insert: Partial<Event>; Update: Partial<Event> }
+      event_items: { Row: EventItem; Insert: Partial<EventItem>; Update: Partial<EventItem> }
+      products: { Row: Product; Insert: Partial<Product>; Update: Partial<Product> }
+      recipes: { Row: Recipe; Insert: Partial<Recipe>; Update: Partial<Recipe> }
+      recipe_items: { Row: RecipeItem; Insert: Partial<RecipeItem>; Update: Partial<RecipeItem> }
+      sales_entries: { Row: SalesEntry; Insert: Partial<SalesEntry>; Update: Partial<SalesEntry> }
+      purchase_headers: { Row: PurchaseHeader; Insert: Partial<PurchaseHeader>; Update: Partial<PurchaseHeader> }
+      purchase_items: { Row: PurchaseItem; Insert: Partial<PurchaseItem>; Update: Partial<PurchaseItem> }
+      stock_movements: { Row: StockMovement; Insert: Partial<StockMovement>; Update: Partial<StockMovement> }
+      inventory_counts: { Row: InventoryCount; Insert: Partial<InventoryCount>; Update: Partial<InventoryCount> }
+      inventory_count_items: { Row: InventoryCountItem; Insert: Partial<InventoryCountItem>; Update: Partial<InventoryCountItem> }
+      vat_rates: { Row: VatRate; Insert: Partial<VatRate>; Update: Partial<VatRate> }
+      categories: { Row: Category; Insert: Partial<Category>; Update: Partial<Category> }
+      units: { Row: Unit; Insert: Partial<Unit>; Update: Partial<Unit> }
+      sales_sources: { Row: SalesSource; Insert: Partial<SalesSource>; Update: Partial<SalesSource> }
+      suppliers: { Row: Supplier; Insert: Partial<Supplier>; Update: Partial<Supplier> }
+      storage_locations: { Row: StorageLocation; Insert: Partial<StorageLocation>; Update: Partial<StorageLocation> }
+      serial_documents: { Row: SerialDocument; Insert: Partial<SerialDocument>; Update: Partial<SerialDocument> }
+      serial_document_usages: { Row: SerialDocumentUsage; Insert: Partial<SerialDocumentUsage>; Update: Partial<SerialDocumentUsage> }
+    }
+  }
+}
+
