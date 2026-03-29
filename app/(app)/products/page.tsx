@@ -16,7 +16,7 @@ export default async function ProductsPage() {
   const supabase = await createClient()
 
   // Lekérjük a termékeket a kapcsolt kategóriákkal és egységekkel
-  const { data: products, error } = await supabase
+  const { data: productsRaw, error } = await supabase
     .from('products')
     .select(`
       *,
@@ -24,6 +24,8 @@ export default async function ProductsPage() {
       units (symbol)
     `)
     .order('name', { ascending: true })
+
+  const products = productsRaw as any[]
 
   if (error) {
     return (

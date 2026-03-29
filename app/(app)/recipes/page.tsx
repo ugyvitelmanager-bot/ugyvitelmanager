@@ -17,7 +17,7 @@ export default async function RecipesPage() {
   const supabase = await createClient()
 
   // Lekérjük a recepteket a hozzájuk tartozó termékekkel és összetevőkkel
-  const { data: recipes, error } = await supabase
+  const { data: recipesRaw, error } = await supabase
     .from('recipes')
     .select(`
       *,
@@ -31,6 +31,8 @@ export default async function RecipesPage() {
     `)
     .eq('is_active', true)
     .order('name', { ascending: true })
+
+  const recipes = recipesRaw as any[]
 
   if (error) {
     return (

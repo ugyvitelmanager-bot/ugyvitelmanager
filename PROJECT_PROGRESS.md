@@ -20,13 +20,14 @@ Ez a fájl követi a Biz Manager MVP megvalósítását.
 
 ### 📦 Termékmenedzsment (Products)
 - [x] Pénzügyi precizitás (fillér alapú számítás, Forint kerekítés eladásnál)
-- [ ] Terméklista nézet (táblázat + szűrés)
+- [x] Terméklista nézet (táblázat + üzletág szerinti szűrés)
 - [ ] Új termék rögzítése (Típus-alapú form)
 - [ ] Termék szerkesztése / Soft Delete
 
 ### 🧪 Receptúrák és Kalkuláció (Recipes)
 - [x] Recept rögzítő logika (Importálva az Airtable-ből!)
 - [x] Önköltség és javasolt ár kalkulátor logika
+- [x] Recept böngésző felület (Ellenőrzéshez)
 - [ ] Recept verziókezelés alapok
 
 ---
