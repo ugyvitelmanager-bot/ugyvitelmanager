@@ -11,8 +11,9 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { FilterSelect } from '@/components/ui/filter-select'
-import { BookOpen, Utensils, Info, Printer, Search, ChefHat } from 'lucide-react'
+import { BookOpen, Utensils, Info, Printer, Search, ChefHat, PlusCircle } from 'lucide-react'
 import Link from 'next/link'
+import { CreateItemModal } from '@/modules/products/components/CreateItemModal'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,6 +76,10 @@ export default async function RecipesPage({ searchParams }: PageProps) {
 
   let recipes = (recipesRaw as any[]) || []
 
+  // Áfa kulcsok lekérése a létrehozó űrlaphoz
+  const { data: vatRatesRaw } = await supabase.from('vat_rates').select('id, rate_percent').order('rate_percent')
+  const vatRates = (vatRatesRaw as any[]) || []
+
   if (categoryFilter) {
     recipes = recipes.filter(r => {
       const prod = getJoined(r.product)
@@ -99,6 +104,14 @@ export default async function RecipesPage({ searchParams }: PageProps) {
           <p className="mt-2 text-gray-500">
             Összesen {recipes.length} receptúra. Tételes összetevők és önköltség elemzés.
           </p>
+        </div>
+        <div className="flex-shrink-0">
+          <CreateItemModal 
+            categories={categories} 
+            vatRates={vatRates} 
+            defaultType="recipe_product"
+            triggerLabel="Új Receptúra" 
+          />
         </div>
       </div>
 

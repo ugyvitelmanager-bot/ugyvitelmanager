@@ -9,8 +9,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { FilterSelect } from '@/components/ui/filter-select'
-import { UtensilsCrossed, Search, Info, ChevronRight, Calculator } from 'lucide-react'
+import { UtensilsCrossed, Search, Info, ChevronRight, Calculator, PlusCircle } from 'lucide-react'
 import Link from 'next/link'
+import { CreateItemModal } from '@/modules/products/components/CreateItemModal'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,6 +54,10 @@ export default async function EtlapPage({ searchParams }: PageProps) {
   const { data: productsRaw } = await query
   let products = (productsRaw as any[]) || []
 
+  // Áfa kulcsok lekérése a létrehozó űrlaphoz
+  const { data: vatRatesRaw } = await supabase.from('vat_rates').select('id, rate_percent').order('rate_percent')
+  const vatRates = (vatRatesRaw as any[]) || []
+
   // Üzletág szűrés
   const getJoined = (data: any) => (Array.isArray(data) ? data[0] : data)
   if (areaFilter) {
@@ -77,6 +82,14 @@ export default async function EtlapPage({ searchParams }: PageProps) {
           <p className="mt-2 text-gray-500">
             {products.length} eladható termék. Árak, betétdíj és kategóriák.
           </p>
+        </div>
+        <div className="flex-shrink-0">
+          <CreateItemModal 
+            categories={categories} 
+            vatRates={vatRates} 
+            defaultType="stock_product"
+            triggerLabel="Új Étlap Tétel" 
+          />
         </div>
       </div>
 
