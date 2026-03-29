@@ -113,7 +113,7 @@ export function ZReportModal() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="area">Üzletág</Label>
-            <Select value={businessArea} onValueChange={(v: any) => setBusinessArea(v)}>
+            <Select value={businessArea} onValueChange={(v: string | null) => v && setBusinessArea(v as any)}>
               <SelectTrigger id="area" className="bg-white">
                 <SelectValue />
               </SelectTrigger>

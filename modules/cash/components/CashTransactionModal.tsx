@@ -112,7 +112,7 @@ export function CashTransactionModal() {
 
           <div className="space-y-2">
             <Label>Mozgás típusa</Label>
-            <Select value={type} onValueChange={(v: any) => setType(v)}>
+            <Select value={type} onValueChange={(v: string | null) => v && setType(v as any)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -128,7 +128,7 @@ export function CashTransactionModal() {
 
           <div className="space-y-2">
             <Label>Forrás pénztár</Label>
-            <Select value={source} onValueChange={(v: any) => setSource(v)}>
+            <Select value={source} onValueChange={(v: string | null) => v && setSource(v as any)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

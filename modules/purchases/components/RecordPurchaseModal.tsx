@@ -164,7 +164,7 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
           </div>
           <div className="space-y-2">
             <Label htmlFor="payment">Kifizetés módja</Label>
-            <Select value={paymentMethod} onValueChange={(v: string) => setPaymentMethod(v as any)}>
+            <Select value={paymentMethod} onValueChange={(v: string | null) => v && setPaymentMethod(v as any)}>
               <SelectTrigger id="payment" className="bg-white">
                 <SelectValue />
               </SelectTrigger>
@@ -219,7 +219,7 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
 
                 <div className="col-span-2 space-y-1">
                   {idx === 0 && <Label className="text-[10px] uppercase font-bold text-slate-400">Egység</Label>}
-                  <Select value={item.unitId} onValueChange={(v: string) => updateItem(item.id, 'unitId', v)}>
+                  <Select value={item.unitId} onValueChange={(v: string | null) => v && updateItem(item.id, 'unitId', v)}>
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Egység" />
                     </SelectTrigger>
