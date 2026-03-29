@@ -41,16 +41,16 @@ function SelectContent({
 }: SelectPrimitive.Popup.Props) {
   return (
     <SelectPrimitive.Portal>
-      <SelectPrimitive.Positioner sideOffset={4}>
+      <SelectPrimitive.Positioner sideOffset={4} className="z-[100]">
         <SelectPrimitive.Popup
           data-slot="select-content"
           className={cn(
-            "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-lg duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            "relative z-[100] max-h-96 min-w-[8rem] overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-lg duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
             className
           )}
           {...props}
         >
-          <SelectPrimitive.List className="p-1">
+          <SelectPrimitive.List className="p-1 outline-none">
             {children}
           </SelectPrimitive.List>
         </SelectPrimitive.Popup>
@@ -59,8 +59,21 @@ function SelectContent({
   )
 }
 
-function SelectValue({ ...props }: SelectPrimitive.Value.Props) {
-  return <SelectPrimitive.Value data-slot="select-value" {...props} />
+function SelectValue({ placeholder, ...props }: SelectPrimitive.Value.Props & { placeholder?: string }) {
+  return (
+    <SelectPrimitive.Value 
+      data-slot="select-value" 
+      className="data-placeholder:text-muted-foreground"
+      {...props} 
+    >
+      {({ value, textValue }) => {
+        if (!value) {
+          return placeholder || ""
+        }
+        return textValue || value
+      }}
+    </SelectPrimitive.Value>
+  )
 }
 
 function SelectItem({

@@ -98,7 +98,7 @@ export function ZReportModal() {
         }
       />
       
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="text-2xl font-bold flex items-center gap-2 text-indigo-700">
             <Calculator className="w-6 h-6" />

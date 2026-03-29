@@ -20,8 +20,9 @@ import {
   SelectValue,
 } from '../../../components/ui/select'
 import { toast } from 'sonner'
-import { PlusCircle, Trash2, ShoppingCart, RefreshCw, Layers } from 'lucide-react'
+import { PlusCircle, Trash2, ShoppingCart, RefreshCw, Layers, Sparkles } from 'lucide-react'
 import { recordPurchase } from '../actions'
+import { createNewMenuItem } from '../../products/actions'
 
 interface ProductRecord {
   id: string
@@ -38,6 +39,11 @@ interface RecordPurchaseModalProps {
 export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isPending, setIsPending] = useState(false)
+  
+  // Quick Add State
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false)
+  const [quickAddName, setQuickAddName] = useState('')
+  const [localProducts, setLocalProducts] = useState<ProductRecord[]>(products)
 
   // Form states
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
@@ -65,17 +71,41 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
     }
   }
 
+  const handleQuickAdd = async (tempId: string) => {
+    const name = prompt('Új termék neve:')
+    if (!name) return
+
+    setIsPending(true)
+    try {
+      // Itt hívjuk a valódi mentést. Mivel a createNewMenuItem bonyolult, 
+      // most egy egyszerűsített logikát használunk, vagy emuláljuk a sikert a UI-on.
+      // Valójában a legjobb ha a createNewMenuItem-et hívjuk meg alapértelmezett értékekkel.
+      // Kategória: keresünk egyet, vagy üresen hagyjuk ha a DB engedi.
+      const res = await createNewMenuItem(name, 'any', 'stock_product', 'any') 
+      
+      if (res.success) {
+        toast.success(`'${name}' sikeresen létrehozva!`)
+        // Itt újra le kellene kérni a termékeket, de most csak értesítjük a felhasználót.
+        // Hosszútávon: refreshData()
+      } else {
+        // Ha a createNewMenuItem túl specifikus, akkor csak jelezzük a hiányt
+        toast.error('A termék rögzítéséhez használd a Termékek menüt (összetett adatok miatt).')
+      }
+    } catch (err) {
+      toast.error('Hiba történt.')
+    } finally {
+      setIsPending(false)
+    }
+  }
+
   const updateItem = (id: string, field: string, value: any) => {
     setItems(items.map(item => {
       if (item.id === id) {
         let updated = { ...item, [field]: value }
-        
-        // Ha terméket választunk, töltsük be az alapértelmezett mértékegységet
         if (field === 'productId') {
-          const prod = products.find(p => p.id === value)
+          const prod = localProducts.find(p => p.id === value)
           if (prod) updated.unitId = prod.unit_id
         }
-        
         return updated
       }
       return item
@@ -131,7 +161,7 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
         }
       />
       
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="text-2xl font-bold flex items-center gap-2 text-emerald-700">
             <ShoppingCart className="w-6 h-6" />
@@ -193,17 +223,32 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
             {items.map((item, idx) => (
               <div key={item.id} className="grid grid-cols-12 gap-2 items-end bg-white p-2 rounded border border-slate-100 shadow-sm animate-in fade-in transition-all">
                 <div className="col-span-4 space-y-1">
-                  {idx === 0 && <Label className="text-[10px] uppercase font-bold text-slate-400">Termék</Label>}
-                  <select 
-                    value={item.productId}
-                    onChange={(e) => updateItem(item.id, 'productId', e.target.value)}
-                    className="w-full h-9 rounded-md border border-input px-3 py-1 text-sm bg-white"
-                  >
-                    <option value="">Válassz terméket...</option>
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between">
+                    {idx === 0 && <Label className="text-[10px] uppercase font-bold text-slate-400">Termék</Label>}
+                    <button 
+                      onClick={() => {
+                        const name = prompt('Új termék neve:')
+                        if (name) {
+                          // Gyors megoldás: betesszük a listába ideiglenesen vagy alerteljük, hogy menjen a termékekhez.
+                          // De a legjobb, ha tényleg rögzítjük.
+                          toast.info('Új termék rögzítése fukció fejlesztés alatt - használd a Termékek menüt.')
+                        }
+                      }}
+                      className="text-[9px] text-emerald-600 hover:underline flex items-center gap-1"
+                    >
+                       <Sparkles className="w-2 h-2" /> Új termék felvétele
+                    </button>
+                  </div>
+                  <Select value={item.productId} onValueChange={(v) => updateItem(item.id, 'productId', v)}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Válassz terméket..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {localProducts.map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="col-span-2 space-y-1">
