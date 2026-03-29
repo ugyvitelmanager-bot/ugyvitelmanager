@@ -29,12 +29,18 @@ export default async function RecipesPage({ searchParams }: PageProps) {
   const queryStr = params.q || ''
   const categoryFilter = params.category || ''
 
-  // Kategóriák
+  // Kategóriák (duplikátumok szűrése)
   const { data: categoriesRaw } = await supabase
     .from('categories')
     .select('id, name')
     .order('name')
-  const categories = (categoriesRaw as any[]) || []
+  const seen = new Set<string>()
+  const categories = ((categoriesRaw as any[]) || []).filter(c => {
+    const key = c.name.toLowerCase().trim()
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 
   // Receptek
   let query = supabase

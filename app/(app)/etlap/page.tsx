@@ -29,7 +29,14 @@ export default async function EtlapPage({ searchParams }: PageProps) {
     .from('categories')
     .select('id, name, business_area')
     .order('name')
-  const categories = (categoriesRaw as any[]) || []
+  // Duplikátumok szűrése
+  const seen = new Set<string>()
+  const categories = ((categoriesRaw as any[]) || []).filter(c => {
+    const key = c.name.toLowerCase().trim()
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 
   // Csak eladható termékek (recipe_product + stock_product), de nem alapanyagok
   let query = supabase
