@@ -18,7 +18,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '../../../components/ui/select'
 import { toast } from 'sonner'
 import { Receipt, AlertTriangle, CheckCircle2, RefreshCw, Calculator } from 'lucide-react'
 import { recordDailyRevenue } from '../actions'
@@ -89,12 +89,14 @@ export function ZReportModal() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-indigo-600 hover:bg-indigo-700 shadow-sm gap-2">
-          <Receipt className="w-4 h-4" />
-          Napi Zárás Rögzítése
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button className="bg-indigo-600 hover:bg-indigo-700 shadow-sm gap-2">
+            <Receipt className="w-4 h-4" />
+            Napi Zárás Rögzítése
+          </Button>
+        }
+      />
       
       <DialogContent className="max-w-2xl">
         <DialogHeader className="border-b pb-4">

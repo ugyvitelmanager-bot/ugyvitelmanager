@@ -18,9 +18,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '../../../components/ui/select'
 import { toast } from 'sonner'
-import { Wallet, PlusCircle, MinusCircle, UserPlus, RefreshCw, Landmark } from 'lucide-react'
+import { Wallet, PlusCircle, MinusCircle, UserPlus, RefreshCw, Landmark, CheckCircle2 } from 'lucide-react'
 import { recordCashTransaction } from '../actions'
 
 export function CashTransactionModal() {
@@ -81,12 +81,14 @@ export function CashTransactionModal() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-orange-600 hover:bg-orange-700 shadow-sm gap-2">
-          <Wallet className="w-4 h-4" />
-          Új Pénztári Mozgás
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button className="bg-orange-600 hover:bg-orange-700 shadow-sm gap-2">
+            <Wallet className="w-4 h-4" />
+            Új Pénztári Mozgás
+          </Button>
+        }
+      />
       
       <DialogContent className="max-w-md">
         <DialogHeader className="border-b pb-4">

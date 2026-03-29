@@ -31,6 +31,10 @@ export default async function BevetelPage() {
   const totalCash = reports.reduce((sum, r) => sum + (r.cash_total_gross || 0), 0)
   const totalCard = reports.reduce((sum, r) => sum + (r.terminal_total_gross || 0), 0)
 
+  // CSV Export Logic (Client-side trigger)
+  const exportToCSV = `data:text/csv;charset=utf-8,Dátum,Üzletág,Összes bruttó,Terminál,Készpénz,ÁFA 27%,ÁFA 5%,ÁFA 0%\n` + 
+    reports.map(r => `${r.date},${r.business_area},${r.z_total_gross/100},${r.terminal_total_gross/100},${r.cash_total_gross/100},${r.vat_27_gross/100},${r.vat_5_gross/100},${r.vat_0_gross/100}`).join('\n')
+
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
       {/* Header */}
@@ -45,10 +49,12 @@ export default async function BevetelPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" className="hidden md:flex gap-2">
-            <Download className="w-4 h-4" />
-            Excel Export
-          </Button>
+          <a href={encodeURI(exportToCSV)} download={`riport_${new Date().toISOString().split('T')[0]}.csv`}>
+            <Button variant="outline" size="sm" className="hidden md:flex gap-2">
+              <Download className="w-4 h-4" />
+              Excel Export (CSV)
+            </Button>
+          </a>
           <ZReportModal />
         </div>
       </div>

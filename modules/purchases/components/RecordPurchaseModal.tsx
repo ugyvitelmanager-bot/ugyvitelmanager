@@ -18,7 +18,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '../../../components/ui/select'
 import { toast } from 'sonner'
 import { PlusCircle, Trash2, ShoppingCart, RefreshCw, Layers } from 'lucide-react'
 import { recordPurchase } from '../actions'
@@ -122,12 +122,14 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-emerald-600 hover:bg-emerald-700 shadow-sm gap-2">
-          <PlusCircle className="w-4 h-4" />
-          Új Beszerzés Rögzítése
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button className="bg-emerald-600 hover:bg-emerald-700 shadow-sm gap-2">
+            <PlusCircle className="w-4 h-4" />
+            Új Beszerzés Rögzítése
+          </Button>
+        }
+      />
       
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="border-b pb-4">
@@ -162,7 +164,7 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
           </div>
           <div className="space-y-2">
             <Label htmlFor="payment">Kifizetés módja</Label>
-            <Select value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)}>
+            <Select value={paymentMethod} onValueChange={(v: string) => setPaymentMethod(v as any)}>
               <SelectTrigger id="payment" className="bg-white">
                 <SelectValue />
               </SelectTrigger>
@@ -217,7 +219,7 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
 
                 <div className="col-span-2 space-y-1">
                   {idx === 0 && <Label className="text-[10px] uppercase font-bold text-slate-400">Egység</Label>}
-                  <Select value={item.unitId} onValueChange={(v) => updateItem(item.id, 'unitId', v)}>
+                  <Select value={item.unitId} onValueChange={(v: string) => updateItem(item.id, 'unitId', v)}>
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Egység" />
                     </SelectTrigger>

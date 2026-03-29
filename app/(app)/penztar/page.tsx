@@ -111,7 +111,7 @@ export default async function PenztarPage() {
             <span className="text-xs font-bold text-indigo-300 uppercase tracking-widest">Tagi Kölcsön Egyenleg</span>
             <UserCheck className="w-5 h-5 text-indigo-300" />
           </div>
-          <h2 className="text-3xl font-black">{formatCurrency(member_loan_balance)}</h2>
+          <h2 className="text-3xl font-black">{formatCurrency(memberLoanBalance)}</h2>
           <p className="text-[10px] text-indigo-300/80">Összesített bevitt magántőke.</p>
         </div>
       </div>
