@@ -9,7 +9,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { FilterSelect } from '@/components/ui/filter-select'
-import { UtensilsCrossed, Search, Info } from 'lucide-react'
+import { UtensilsCrossed, Search, Info, ChevronRight, Calculator } from 'lucide-react'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
@@ -112,6 +113,7 @@ export default async function EtlapPage({ searchParams }: PageProps) {
                 <TableHead className="text-right font-semibold">Nettó önköltség</TableHead>
                 <TableHead className="text-right font-semibold">Tiszta Ár (Br.)</TableHead>
                 <TableHead className="text-right font-semibold">Összes Br.</TableHead>
+                <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -148,6 +150,11 @@ export default async function EtlapPage({ searchParams }: PageProps) {
                     <TableCell className="text-right font-bold font-mono whitespace-nowrap">
                       <div>{formatCurrency(totalGross)}</div>
                       {isMohu && <div className="text-[9px] bg-blue-100 text-blue-800 px-1 rounded font-bold uppercase">+50 Ft MOHU</div>}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Link href={`/etlap/${item.id}`} className="inline-flex h-8 items-center justify-center rounded-md bg-indigo-50 px-3 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-100 uppercase tracking-widest gap-2">
+                        <Calculator className="w-4 h-4" />
+                      </Link>
                     </TableCell>
                   </TableRow>
                 )
