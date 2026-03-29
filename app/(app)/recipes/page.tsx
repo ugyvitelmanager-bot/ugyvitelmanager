@@ -11,9 +11,10 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { FilterSelect } from '@/components/ui/filter-select'
-import { BookOpen, Utensils, Info, Printer, Search, ChefHat, PlusCircle } from 'lucide-react'
+import { BookOpen, Utensils, Info, Printer, Search, ChefHat, PlusCircle, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { CreateItemModal } from '@/modules/products/components/CreateItemModal'
+import { ArchiveProductButton } from '@/modules/products/components/ArchiveProductButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +22,7 @@ interface PageProps {
   searchParams: Promise<{
     q?: string
     category?: string
+    archived?: string
   }>
 }
 
@@ -30,6 +32,7 @@ export default async function RecipesPage({ searchParams }: PageProps) {
   
   const queryStr = params.q || ''
   const categoryFilter = params.category || ''
+  const showArchived = params.archived === 'true'
 
   // Kategóriák (duplikátumok szűrése)
   const { data: categoriesRaw } = await supabase
@@ -49,7 +52,7 @@ export default async function RecipesPage({ searchParams }: PageProps) {
     .from('recipes')
     .select(`
       *,
-      product:products (id, name, default_sale_price_gross, category_id),
+      product:products (id, name, default_sale_price_gross, category_id, is_active),
       recipe_items (
         id,
         quantity,
@@ -57,10 +60,14 @@ export default async function RecipesPage({ searchParams }: PageProps) {
         unit:units (symbol)
       )
     `)
-    .eq('is_active', true)
     .order('name', { ascending: true })
 
   if (queryStr) query = query.ilike('name', `%${queryStr}%`)
+  
+  // Archivált szűrés
+  if (!showArchived) {
+    query = query.eq('is_active', true)
+  }
 
   const { data: recipesRaw, error } = await query
   
@@ -88,9 +95,11 @@ export default async function RecipesPage({ searchParams }: PageProps) {
   }
 
   const categoryOptions = categories.map(c => ({ value: c.id, label: c.name }))
-  const currentParams: Record<string, string> = {}
-  if (queryStr) currentParams.q = queryStr
-  if (categoryFilter) currentParams.category = categoryFilter
+  const currentParams: Record<string, string> = {
+    ...(queryStr && { q: queryStr }),
+    ...(categoryFilter && { category: categoryFilter }),
+    ...(showArchived && { archived: 'true' })
+  }
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -102,10 +111,16 @@ export default async function RecipesPage({ searchParams }: PageProps) {
             Receptúrák & Kalkulációk
           </h1>
           <p className="mt-2 text-gray-500">
-            Összesen {recipes.length} receptúra. Tételes összetevők és önköltség elemzés.
+            {recipes.length} receptúra kezelése.
           </p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <Link href={showArchived ? '/recipes' : '/recipes?archived=true'}>
+            <Button variant={showArchived ? 'default' : 'outline'} size="sm" className={showArchived ? 'bg-orange-600 hover:bg-orange-700' : ''}>
+              {showArchived ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+              {showArchived ? 'Archiváltak elrejtése' : 'Archiváltak mutatása'}
+            </Button>
+          </Link>
           <CreateItemModal 
             categories={categories} 
             vatRates={vatRates} 
@@ -127,6 +142,7 @@ export default async function RecipesPage({ searchParams }: PageProps) {
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-10 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
             {categoryFilter && <input type="hidden" name="category" value={categoryFilter} />}
+            {showArchived && <input type="hidden" name="archived" value="true" />}
           </form>
         </div>
 
@@ -151,6 +167,7 @@ export default async function RecipesPage({ searchParams }: PageProps) {
           {recipes.map((recipe) => {
             const items = recipe.recipe_items || []
             const prod = getJoined(recipe.product)
+            const isActive = recipe.is_active !== false
 
             const totalCost = items.reduce((sum: number, item: any) => {
               const ingredient = getJoined(item.ingredient)
@@ -162,17 +179,17 @@ export default async function RecipesPage({ searchParams }: PageProps) {
             const profitLabel = profit >= 0 ? formatCurrency(profit) : 'Negatív árrés!'
 
             return (
-              <Card key={recipe.id} className="overflow-hidden shadow-lg border-2 border-gray-100 hover:border-primary/20 transition-all">
-                <CardHeader className="bg-gray-100/50 pb-6 border-b">
+              <Card key={recipe.id} className={`overflow-hidden shadow-lg border-2 transition-all ${!isActive ? 'border-orange-100 bg-slate-50 opacity-80' : 'border-gray-100 hover:border-primary/20'}`}>
+                <CardHeader className={`${!isActive ? 'bg-orange-50' : 'bg-gray-100/50'} pb-6 border-b`}>
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div className="flex items-center gap-4">
-                      <div className="bg-primary/10 p-3 rounded-xl">
-                        <Utensils className="w-6 h-6 text-primary" />
+                      <div className={`${!isActive ? 'bg-orange-200' : 'bg-primary/10'} p-3 rounded-xl`}>
+                        <Utensils className={`w-6 h-6 ${!isActive ? 'text-orange-700' : 'text-primary'}`} />
                       </div>
                       <div>
-                        <CardTitle className="text-2xl font-bold text-gray-900">{recipe.name}</CardTitle>
+                        <CardTitle className={`text-2xl font-bold ${!isActive ? 'text-orange-900 line-through' : 'text-gray-900'}`}>{recipe.name}</CardTitle>
                         <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-2 py-0.5 bg-gray-200 rounded">
-                          Kalkulációs Lap
+                          {isActive ? 'Kalkulációs Lap' : 'Archivált Recept'}
                         </span>
                       </div>
                     </div>
@@ -185,10 +202,13 @@ export default async function RecipesPage({ searchParams }: PageProps) {
                         <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Eladási Ár</div>
                         <div className="text-xl font-black text-primary">{formatCurrency(saleGross)}</div>
                       </div>
-                      <Link href={`/recipes/${recipe.id}`} className="inline-flex h-10 items-center justify-center rounded-md bg-orange-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-700 uppercase tracking-widest gap-2">
-                        <ChefHat className="w-4 h-4" />
-                        Szerkesztés
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link href={`/recipes/${recipe.id}`} className="inline-flex h-10 items-center justify-center rounded-md bg-orange-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-orange-700 uppercase tracking-widest gap-2">
+                          <ChefHat className="w-4 h-4" />
+                          Szerkesztés
+                        </Link>
+                        <ArchiveProductButton productId={recipe.product_id} isActive={isActive} />
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
@@ -196,10 +216,10 @@ export default async function RecipesPage({ searchParams }: PageProps) {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-white/50 hover:bg-white/50">
-                        <TableHead className="w-[45%] text-[10px] font-bold uppercase tracking-tight py-4">Alapanyag</TableHead>
-                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-tight py-4">Mennyiség</TableHead>
-                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-tight py-4">Egységár (N.)</TableHead>
-                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-tight py-4">Érték (N.)</TableHead>
+                        <TableHead className="w-[45%] text-[10px] font-bold uppercase tracking-tight py-4 px-6 text-slate-500">Alapanyag</TableHead>
+                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-tight py-4 text-slate-500">Mennyiség</TableHead>
+                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-tight py-4 text-slate-500">Egységár (N.)</TableHead>
+                        <TableHead className="text-right text-[10px] font-bold uppercase tracking-tight py-4 px-6 text-slate-500">Érték (N.)</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -209,33 +229,33 @@ export default async function RecipesPage({ searchParams }: PageProps) {
                         const lineCost = item.quantity * (ingredient?.purchase_price_net || 0)
                         return (
                           <TableRow key={item.id} className="text-sm border-b hover:bg-gray-50/30">
-                            <TableCell className="font-semibold text-gray-800">{ingredient?.name || '-'}</TableCell>
+                            <TableCell className="font-semibold text-gray-800 px-6 py-4">{ingredient?.name || '-'}</TableCell>
                             <TableCell className="text-right font-medium">
                               {item.quantity} {unit?.symbol || ''}
                             </TableCell>
                             <TableCell className="text-right text-muted-foreground font-mono text-xs whitespace-nowrap">
                               {formatCurrency(ingredient?.purchase_price_net || 0)}
                             </TableCell>
-                            <TableCell className="text-right font-bold text-gray-700 font-mono whitespace-nowrap">
+                            <TableCell className="text-right font-bold text-gray-700 font-mono whitespace-nowrap px-6">
                               {formatCurrency(lineCost)}
                             </TableCell>
                           </TableRow>
                         )
                       })}
                       <TableRow className="bg-gray-50/80 font-bold border-t-2">
-                        <TableCell colSpan={3} className="text-right py-5 uppercase tracking-tighter text-gray-500">
-                          Összesített Nettó Önköltség
+                        <TableCell colSpan={3} className="text-right py-5 px-6 uppercase tracking-tighter text-gray-400">
+                          Összesített Nettó Anyagdíj
                         </TableCell>
-                        <TableCell className="text-right py-5 text-gray-900 border-l border-gray-100 font-mono whitespace-nowrap">
+                        <TableCell className="text-right py-5 text-indigo-700 border-l border-gray-100 font-mono whitespace-nowrap px-6 text-lg">
                           {formatCurrency(totalCost)}
                         </TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>
-                  <div className="p-4 bg-primary/5 flex justify-between items-center text-xs">
+                  <div className={`p-4 flex justify-between items-center text-xs ${!isActive ? 'bg-orange-50/50' : 'bg-primary/5'}`}>
                     <div className="flex items-center gap-2 text-primary font-bold">
-                      <Info className="w-3.5 h-3.5" />
-                      Árrés: <span className={`bg-white px-2 py-0.5 rounded shadow-sm ${profit < 0 ? 'text-red-600' : ''}`}>{profitLabel}</span>
+                      <span className="text-gray-500 uppercase">Haszonkulcs kalkuláció:</span>
+                      <span className={`bg-white px-2 py-1 rounded shadow-sm border ${profit < 0 ? 'text-red-600 border-red-200' : 'text-emerald-700 border-emerald-100'}`}>{profitLabel}</span>
                     </div>
                     <span className="text-muted-foreground italic">Frissítve: {new Date().toLocaleDateString('hu-HU')}</span>
                   </div>

@@ -9,14 +9,16 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { FilterSelect } from '@/components/ui/filter-select'
-import { UtensilsCrossed, Search, Info, ChevronRight, Calculator, PlusCircle } from 'lucide-react'
+import { UtensilsCrossed, Search, Info, ChevronRight, Calculator, PlusCircle, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { CreateItemModal } from '@/modules/products/components/CreateItemModal'
+import { ArchiveProductButton } from '@/modules/products/components/ArchiveProductButton'
+import { Button } from '@/components/ui/button'
 
 export const dynamic = 'force-dynamic'
 
 interface PageProps {
-  searchParams: Promise<{ q?: string; category?: string; area?: string }>
+  searchParams: Promise<{ q?: string; category?: string; area?: string; archived?: string }>
 }
 
 export default async function EtlapPage({ searchParams }: PageProps) {
@@ -26,6 +28,7 @@ export default async function EtlapPage({ searchParams }: PageProps) {
   const queryStr = params.q || ''
   const categoryFilter = params.category || ''
   const areaFilter = params.area || ''
+  const showArchived = params.archived === 'true'
 
   const { data: categoriesRaw } = await supabase
     .from('categories')
@@ -51,7 +54,21 @@ export default async function EtlapPage({ searchParams }: PageProps) {
   if (queryStr) query = query.ilike('name', `%${queryStr}%`)
   if (categoryFilter) query = query.eq('category_id', categoryFilter)
 
-  const { data: productsRaw } = await query
+  // Arhivált szűrés
+  if (!showArchived) {
+    query = query.eq('is_active', true)
+  }
+
+  const { data: productsRaw, error: dbError } = await query
+  
+  if (dbError) {
+    return (
+      <div className="p-8 text-red-600 bg-red-50 rounded-xl m-8">
+        <strong>Adatbázis hiba:</strong> {dbError.message}
+      </div>
+    )
+  }
+
   let products = (productsRaw as any[]) || []
 
   // Áfa kulcsok lekérése a létrehozó űrlaphoz
@@ -66,10 +83,12 @@ export default async function EtlapPage({ searchParams }: PageProps) {
 
   const MOHU_FEE = 5000
   const categoryOptions = categories.map(c => ({ value: c.id, label: c.name }))
-  const currentParams: Record<string, string> = {}
-  if (queryStr) currentParams.q = queryStr
-  if (categoryFilter) currentParams.category = categoryFilter
-  if (areaFilter) currentParams.area = areaFilter
+  const currentParams: Record<string, string> = {
+    ...(queryStr && { q: queryStr }),
+    ...(categoryFilter && { category: categoryFilter }),
+    ...(areaFilter && { area: areaFilter }),
+    ...(showArchived && { archived: 'true' })
+  }
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -77,18 +96,24 @@ export default async function EtlapPage({ searchParams }: PageProps) {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 flex items-center gap-3">
             <UtensilsCrossed className="w-8 h-8 text-primary" />
-            Étlap
+            Termékek (Étlap)
           </h1>
           <p className="mt-2 text-gray-500">
-            {products.length} eladható termék. Árak, betétdíj és kategóriák.
+            {products.length} eladható termék kezelése.
           </p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <Link href={showArchived ? '/etlap' : '/etlap?archived=true'}>
+            <Button variant={showArchived ? 'default' : 'outline'} size="sm" className={showArchived ? 'bg-orange-600 hover:bg-orange-700' : ''}>
+              {showArchived ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+              {showArchived ? 'Archiváltak elrejtése' : 'Archiváltak mutatása'}
+            </Button>
+          </Link>
           <CreateItemModal 
             categories={categories} 
             vatRates={vatRates} 
             defaultType="stock_product"
-            triggerLabel="Új Étlap Tétel" 
+            triggerLabel="Új Tétel" 
           />
         </div>
       </div>
@@ -102,6 +127,7 @@ export default async function EtlapPage({ searchParams }: PageProps) {
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-10 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
             {categoryFilter && <input type="hidden" name="category" value={categoryFilter} />}
             {areaFilter && <input type="hidden" name="area" value={areaFilter} />}
+            {showArchived && <input type="hidden" name="archived" value="true" />}
           </form>
         </div>
         <FilterSelect name="area" value={areaFilter} placeholder="Összes üzletág" basePath="/etlap"
@@ -110,23 +136,17 @@ export default async function EtlapPage({ searchParams }: PageProps) {
           basePath="/etlap" currentParams={currentParams} options={categoryOptions} />
       </div>
 
-      <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex items-start gap-2 text-sm text-blue-700">
-        <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
-        <p><strong>Betétdíj:</strong> A „Tiszta Ár" a betétdíj nélküli eladási ár. Az „Összes Br." tartalmazza az 50 Ft-os MOHU díjat is.</p>
-      </div>
-
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-gray-50/50">
               <TableRow>
-                <TableHead className="font-semibold min-w-[200px]">Termék</TableHead>
+                <TableHead className="font-semibold min-w-[200px]">Megnevezés</TableHead>
                 <TableHead className="font-semibold">Kategória</TableHead>
-                <TableHead className="font-semibold text-center">ÁFA</TableHead>
-                <TableHead className="text-right font-semibold">Nettó önköltség</TableHead>
+                <TableHead className="text-right font-semibold">Anyagköltség (Σ)</TableHead>
                 <TableHead className="text-right font-semibold">Tiszta Ár (Br.)</TableHead>
-                <TableHead className="text-right font-semibold">Összes Br.</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead className="text-right font-semibold">Végösszeg (Br.)</TableHead>
+                <TableHead className="w-[120px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -138,21 +158,20 @@ export default async function EtlapPage({ searchParams }: PageProps) {
                 const cleanGross = isMohu ? totalGross - MOHU_FEE : totalGross
                 const cat = getJoined(item.categories)
                 const unit = getJoined(item.units)
+                const isActive = item.is_active !== false
 
                 return (
-                  <TableRow key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                  <TableRow key={item.id} className={`hover:bg-gray-50/50 transition-colors ${!isActive ? 'bg-slate-50 opacity-60' : ''}`}>
                     <TableCell className="font-medium">
-                      <div>{item.name}</div>
+                      <div className={!isActive ? 'line-through text-slate-400' : ''}>{item.name}</div>
                       <div className="text-[10px] text-muted-foreground uppercase">{unit?.symbol}</div>
+                      {!isActive && <div className="text-[9px] font-bold text-orange-600 uppercase mt-0.5">Archivált</div>}
                     </TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset uppercase
                         ${cat?.business_area === 'fish' ? 'bg-green-50 text-green-700 ring-green-700/10' : 'bg-blue-50 text-blue-700 ring-blue-700/10'}`}>
                         {cat?.name || '-'}
                       </span>
-                    </TableCell>
-                    <TableCell className="text-center text-xs font-mono text-muted-foreground">
-                      {item.default_vat_rate_id ? '27% / 5%' : '-'}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm text-muted-foreground whitespace-nowrap">
                       {item.purchase_price_net ? formatCurrency(item.purchase_price_net) : '-'}
@@ -162,12 +181,15 @@ export default async function EtlapPage({ searchParams }: PageProps) {
                     </TableCell>
                     <TableCell className="text-right font-bold font-mono whitespace-nowrap">
                       <div>{formatCurrency(totalGross)}</div>
-                      {isMohu && <div className="text-[9px] bg-blue-100 text-blue-800 px-1 rounded font-bold uppercase">+50 Ft MOHU</div>}
+                      {isMohu && <div className="text-[10px] text-blue-700">+MOHU</div>}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Link href={`/etlap/${item.id}`} className="inline-flex h-8 items-center justify-center rounded-md bg-indigo-50 px-3 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-100 uppercase tracking-widest gap-2">
-                        <Calculator className="w-4 h-4" />
-                      </Link>
+                      <div className="flex items-center justify-end gap-1">
+                        <Link href={`/etlap/${item.id}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-indigo-50 text-indigo-600 transition-colors hover:bg-indigo-100">
+                          <Calculator className="w-4 h-4" />
+                        </Link>
+                        <ArchiveProductButton productId={item.id} isActive={isActive} />
+                      </div>
                     </TableCell>
                   </TableRow>
                 )

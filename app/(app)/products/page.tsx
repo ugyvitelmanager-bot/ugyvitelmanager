@@ -10,8 +10,10 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { FilterSelect } from '@/components/ui/filter-select'
-import { Package, Search, RotateCcw, Info } from 'lucide-react'
+import { Package, Search, RotateCcw, Info, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
+import { ProductUnitEditor } from '@/modules/products/components/ProductUnitEditor'
+import { ArchiveProductButton } from '@/modules/products/components/ArchiveProductButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +22,7 @@ interface PageProps {
     q?: string
     category?: string
     area?: string
+    archived?: string
   }>
 }
 
@@ -30,13 +33,14 @@ export default async function ProductsPage({ searchParams }: PageProps) {
   const queryStr = params.q || ''
   const categoryFilter = params.category || ''
   const areaFilter = params.area || ''
+  const showArchived = params.archived === 'true'
 
   // Kategóriák lekérése a szűrőhöz
   const { data: categoriesRaw } = await supabase
     .from('categories')
     .select('id, name, business_area')
     .order('name')
-  // Duplikátumok szűrése (név alapján, kis/nagybetű független)
+  
   const seen = new Set<string>()
   const categories = ((categoriesRaw as any[]) || []).filter(c => {
     const key = c.name.toLowerCase().trim()
@@ -45,32 +49,52 @@ export default async function ProductsPage({ searchParams }: PageProps) {
     return true
   })
 
+  // Mértékegységek lekérése a szerkesztőhöz
+  const { data: unitsRaw } = await supabase.from('units').select('id, symbol').order('symbol')
+  const allUnits = (unitsRaw as any[]) || []
+
   // Termékek lekérése
   let query = supabase
     .from('products')
     .select(`
       *,
       categories (id, name, business_area),
-      units (symbol)
+      units (id, symbol)
     `)
     .order('name', { ascending: true })
 
   if (queryStr) query = query.ilike('name', `%${queryStr}%`)
   if (categoryFilter) query = query.eq('category_id', categoryFilter)
+  
+  // Archivált szűrés
+  if (!showArchived) {
+    query = query.eq('is_active', true)
+  }
 
   const { data: productsRaw, error } = await query
   
   if (error) {
     return (
       <div className="p-8 text-red-600 bg-red-50 rounded-xl m-8">
-        <strong>Adatbázis hiba:</strong> {error.message}
+        <p className="font-bold flex items-center gap-2 mb-2">
+          <Info className="w-5 h-5" /> Adatbázis hiba
+        </p>
+        <p className="text-sm">{error.message}</p>
+        {error.message.includes('is_active') && (
+          <div className="mt-4 p-3 bg-white border border-red-200 rounded text-xs">
+            <strong>Megoldás:</strong> Úgy tűnik hiányzik az `is_active` oszlop. 
+            Futtasd ezt az SQL-t a Supabase SQL Editorban:
+            <code className="block mt-1 p-1 bg-gray-100 rounded">
+              ALTER TABLE products ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+            </code>
+          </div>
+        )}
       </div>
     )
   }
 
   let products = (productsRaw as any[]) || []
 
-  // Üzletág szűrés kliens-oldali (a join miatt)
   if (areaFilter) {
     products = products.filter((p) => {
       const cat = Array.isArray(p.categories) ? p.categories[0] : p.categories
@@ -79,14 +103,15 @@ export default async function ProductsPage({ searchParams }: PageProps) {
   }
 
   const MOHU_FEE = 5000
-
   const getJoined = (data: any) => Array.isArray(data) ? data[0] : data
 
   const categoryOptions = categories.map(c => ({ value: c.id, label: c.name }))
-  const currentParams: Record<string, string> = {}
-  if (queryStr) currentParams.q = queryStr
-  if (categoryFilter) currentParams.category = categoryFilter
-  if (areaFilter) currentParams.area = areaFilter
+  const currentParams: Record<string, string> = {
+    ...(queryStr && { q: queryStr }),
+    ...(categoryFilter && { category: categoryFilter }),
+    ...(areaFilter && { area: areaFilter }),
+    ...(showArchived && { archived: 'true' })
+  }
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -95,18 +120,26 @@ export default async function ProductsPage({ searchParams }: PageProps) {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 flex items-center gap-3">
             <Package className="w-8 h-8 text-primary" />
-            Terméklista
+            Áruk / Alapanyagok
           </h1>
           <p className="mt-2 text-gray-500">
-            Összesen {products.length} termék.
+            Összesen {products.length} tétel kezelése a raktárban.
           </p>
         </div>
-        <Link href="/settings/import">
-          <Button variant="outline" size="sm">
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Adatok frissítése
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+           <Link href={showArchived ? '/products' : '/products?archived=true'}>
+            <Button variant={showArchived ? 'default' : 'outline'} size="sm" className={showArchived ? 'bg-orange-600 hover:bg-orange-700' : ''}>
+              {showArchived ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+              {showArchived ? 'Archiváltak elrejtése' : 'Archiváltak mutatása'}
+            </Button>
+          </Link>
+          <Link href="/settings/import">
+            <Button variant="outline" size="sm">
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Frissítés CSV-ből
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
@@ -122,6 +155,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             />
             {categoryFilter && <input type="hidden" name="category" value={categoryFilter} />}
             {areaFilter && <input type="hidden" name="area" value={areaFilter} />}
+            {showArchived && <input type="hidden" name="archived" value="true" />}
           </form>
         </div>
 
@@ -151,8 +185,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
       <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex items-start gap-2 text-sm text-blue-700">
         <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
         <p>
-          <strong>MOHU Betétdíj:</strong> A betétdíjas termékeknél a bruttó ár tartalmazza az 50 Ft-os fix állami díjat.
-          A "Tiszta Ár" oszlop a betétdíj nélküli eladási árat mutatja.
+          <strong>Mértékegység javítás:</strong> Ha a raktárba bekerült termék mértékegysége (pl. hús) tévesen "DB", itt átállíthatod "KG"-ra, hogy a receptúra grammban számoljon.
         </p>
       </div>
 
@@ -162,61 +195,63 @@ export default async function ProductsPage({ searchParams }: PageProps) {
           <Table>
             <TableHeader className="bg-gray-50/50">
               <TableRow>
-                <TableHead className="font-semibold min-w-[200px]">Termék név</TableHead>
-                <TableHead className="font-semibold text-center">Üzletág</TableHead>
+                <TableHead className="font-semibold min-w-[200px]">Megnevezés</TableHead>
+                <TableHead className="font-semibold text-center">Egység</TableHead>
                 <TableHead className="font-semibold">Kategória</TableHead>
-                <TableHead className="text-right font-semibold">Besz. ár (N.)</TableHead>
-                <TableHead className="text-right font-semibold">Tiszta Ár (Br.)</TableHead>
-                <TableHead className="text-right font-semibold">Bruttó ár</TableHead>
+                <TableHead className="text-right font-semibold">Beszerzési Ár</TableHead>
+                <TableHead className="text-right font-semibold">Eladási Ár (Br.)</TableHead>
+                <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {products.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                    Nincsenek találatok a megadott szűrési feltételekre.
+                    Nincsenek találatok.
                   </TableCell>
                 </TableRow>
               ) : (
                 products.map((item) => {
                   const totalGross = item.default_sale_price_gross || 0
                   const isMohu = item.is_mohu_fee
-                  const cleanGross = isMohu ? totalGross - MOHU_FEE : totalGross
                   const cat = getJoined(item.categories)
                   const unit = getJoined(item.units)
+                  const isActive = item.is_active !== false
 
                   return (
-                    <TableRow key={item.id} className="hover:bg-gray-50/50 transition-colors">
-                      <TableCell className="font-medium">
+                    <TableRow key={item.id} className={`hover:bg-gray-50/50 transition-colors ${!isActive ? 'bg-slate-50 opacity-60' : ''}`}>
+                      <TableCell className="font-medium px-6 py-4">
                         <div className="flex flex-col">
-                          <span>{item.name}</span>
-                          <span className="text-[10px] text-muted-foreground uppercase">{unit?.symbol || ''}</span>
+                          <span className={!isActive ? 'line-through text-slate-400' : ''}>{item.name}</span>
+                          {!isActive && <span className="text-[10px] font-bold text-orange-600 uppercase tracking-tighter">Archivált</span>}
                         </div>
                       </TableCell>
-                      <TableCell className="text-center">
-                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-bold ring-1 ring-inset uppercase
+                      <TableCell className="text-center px-4">
+                        <div className="inline-block">
+                          <ProductUnitEditor 
+                            productId={item.id} 
+                            currentUnitId={item.unit_id} 
+                            units={allUnits} 
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset uppercase mr-2
                           ${cat?.business_area === 'fish'
                             ? 'bg-green-50 text-green-700 ring-green-700/10'
                             : 'bg-blue-50 text-blue-700 ring-blue-700/10'}`}>
                           {cat?.business_area === 'fish' ? 'Halas' : 'Büfé'}
                         </span>
+                        {cat?.name || '-'}
                       </TableCell>
-                      <TableCell className="text-sm">{cat?.name || '-'}</TableCell>
                       <TableCell className="text-right font-mono text-sm opacity-80 whitespace-nowrap">
-                        {item.purchase_price_net ? formatCurrency(item.purchase_price_net) : '-'}
-                      </TableCell>
-                      <TableCell className={`text-right font-semibold font-mono whitespace-nowrap ${isMohu ? 'text-blue-600' : ''}`}>
-                        {formatCurrency(cleanGross)}
+                        {item.purchase_price_net ? formatCurrency(item.purchase_price_net) : '0 Ft'}
                       </TableCell>
                       <TableCell className="text-right font-bold text-gray-900 font-mono whitespace-nowrap">
-                        <div className="flex flex-col items-end">
-                          <span>{formatCurrency(totalGross)}</span>
-                          {isMohu && (
-                            <span className="text-[9px] bg-blue-100 text-blue-800 px-1 rounded font-bold uppercase">
-                              +50 Ft Betétdíj
-                            </span>
-                          )}
-                        </div>
+                         {formatCurrency(totalGross)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <ArchiveProductButton productId={item.id} isActive={isActive} />
                       </TableCell>
                     </TableRow>
                   )

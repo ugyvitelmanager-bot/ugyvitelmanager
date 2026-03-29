@@ -120,3 +120,43 @@ export async function createNewMenuItem(
     return { success: false, error: error.message }
   }
 }
+
+export async function updateProductUnit(productId: string, unitId: string) {
+  try {
+    const supabase = await createClient()
+    const { error } = await (supabase.from('products') as any).update({ unit_id: unitId }).eq('id', productId)
+    if (error) throw error
+    revalidatePath('/products')
+    revalidatePath('/recipes')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+
+export async function toggleProductArchive(productId: string, isActive: boolean) {
+  try {
+    const supabase = await createClient()
+    const { error } = await (supabase.from('products') as any).update({ is_active: isActive }).eq('id', productId)
+    
+    if (error) {
+      if (error.code === '42703') { // undefined_column
+        throw new Error('Hiányzó oszlop a Supabase-ben! Kérlek futtasd ezt az SQL-t: ALTER TABLE products ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;')
+      }
+      throw error
+    }
+    
+    // Ha recept, azt is archiváljuk
+    const { data: recipe } = await supabase.from('recipes').select('id').eq('product_id', productId).single()
+    if (recipe) {
+      await (supabase.from('recipes') as any).update({ is_active: isActive }).eq('product_id', productId)
+    }
+
+    revalidatePath('/etlap')
+    revalidatePath('/products')
+    revalidatePath('/recipes')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}

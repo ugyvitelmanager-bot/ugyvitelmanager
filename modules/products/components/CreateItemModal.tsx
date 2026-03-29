@@ -59,9 +59,9 @@ export function CreateItemModal({
       const res = await createNewMenuItem(name.trim(), categoryId, productType, vatRateId)
       
       if (res.success && res.redirectUrl) {
-        toast.success('Sikeresen létrehozva! Átirányítás a szerkesztőbe...')
+        toast.success('Sikeresen létrehozva! Átirányítás...')
         setIsOpen(false)
-        router.push(res.redirectUrl)
+        window.location.href = res.redirectUrl
       } else {
         toast.error('Hiba: ' + res.error)
       }
