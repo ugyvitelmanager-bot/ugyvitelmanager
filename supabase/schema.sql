@@ -64,6 +64,7 @@ CREATE TABLE categories (
   name TEXT NOT NULL,
   category_type category_type NOT NULL,
   parent_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+  business_area business_area NOT NULL DEFAULT 'other',
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -132,6 +133,8 @@ CREATE TABLE products (
   default_sale_price_net INTEGER,       -- javasolt nettó eladási ár (fillér)
   default_sale_price_gross INTEGER,     -- javasolt bruttó eladási ár (fillér)
   note TEXT,
+  is_mohu_fee BOOLEAN DEFAULT FALSE,
+  current_stock NUMERIC DEFAULT 0,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -192,6 +195,60 @@ CREATE TABLE purchase_items (
   line_net_amount INTEGER NOT NULL,      -- fillér
   line_gross_amount INTEGER NOT NULL,    -- fillér
   is_stock_affecting BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+-- ============================================================
+-- 4b. EGYSZERŰSÍTETT BESZERZÉS (MVP tábla)
+-- Megjegyzés: párhuzamosan létezik a purchase_headers/purchase_items
+-- párral. A kód jelenleg ezt használja. Phase 2-ben konsolidálandó.
+-- ============================================================
+
+CREATE TABLE purchases (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  date DATE NOT NULL,
+  invoice_number TEXT,
+  supplier_name TEXT NOT NULL,
+  total_net BIGINT DEFAULT 0,
+  payment_method TEXT NOT NULL,
+  note TEXT
+);
+
+-- ============================================================
+-- 4c. PÉNZTÁR TRANZAKCIÓK
+-- Megjegyzés: amount BIGINT (fillér), de eltér a többi pénzügyi
+-- mező INTEGER típusától. Ismert inkonzisztencia, Phase 2-ben javítható.
+-- ============================================================
+
+CREATE TABLE cash_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  date DATE NOT NULL,
+  amount BIGINT NOT NULL,
+  type TEXT NOT NULL,
+  source TEXT NOT NULL,
+  note TEXT,
+  purchase_id UUID
+);
+
+-- ============================================================
+-- 4d. NAPI RIPORTOK (Z-riport adatok)
+-- Megjegyzés: business_area itt TEXT, nem business_area enum.
+-- Ismert inkonzisztencia a categories.business_area enum-mal képest.
+-- ============================================================
+
+CREATE TABLE daily_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  date DATE NOT NULL,
+  business_area TEXT NOT NULL,
+  z_total_gross BIGINT DEFAULT 0,
+  terminal_total_gross BIGINT DEFAULT 0,
+  cash_total_gross BIGINT DEFAULT 0,
+  vat_5_gross BIGINT DEFAULT 0,
+  vat_27_gross BIGINT DEFAULT 0,
+  vat_0_gross BIGINT DEFAULT 0,
+  note TEXT
 );
 
 -- ============================================================
@@ -283,7 +340,7 @@ CREATE TABLE inventory_count_items (
   product_id UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
   system_quantity NUMERIC(10,4) NOT NULL DEFAULT 0,   -- rendszer szerinti
   counted_quantity NUMERIC(10,4) NOT NULL DEFAULT 0,  -- ténylegesen megszámlált
-  difference_quantity NUMERIC(10,4) GENERATED ALWAYS AS (counted_quantity - system_quantity) STORED,
+  difference_quantity NUMERIC(10,4),
   unit_id UUID NOT NULL REFERENCES units(id) ON DELETE RESTRICT,
   note TEXT
 );
@@ -431,6 +488,19 @@ CREATE POLICY "Authenticated users can write" ON inventory_count_items FOR ALL T
 CREATE POLICY "Authenticated users can write" ON events FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated users can write" ON event_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
+-- Három új tábla (MVP)
+ALTER TABLE purchases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cash_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_reports ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can read all" ON purchases FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can read all" ON cash_transactions FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can read all" ON daily_reports FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can write" ON purchases FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated users can write" ON cash_transactions FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated users can write" ON daily_reports FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
 -- Profil: csak a saját profilt láthatja/szerkesztheti
 CREATE POLICY "Users can view own profile" ON profiles FOR SELECT TO authenticated USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
@@ -464,14 +534,14 @@ INSERT INTO storage_locations (name, location_type) VALUES
   ('Bolt (horgász)', 'shop'),
   ('Egyéb raktár', 'warehouse');
 
-INSERT INTO categories (name, category_type) VALUES
-  ('Büfé alapanyag', 'product'),
-  ('Büfé termék', 'product'),
-  ('Horgászcikk', 'product'),
-  ('Hal', 'product'),
-  ('Horgászjegy', 'product'),
-  ('Büfé bevétel', 'sale'),
-  ('Halas bevétel', 'sale'),
-  ('Rendezvény bevétel', 'sale'),
-  ('Alapanyag beszerzés', 'purchase'),
-  ('Készlet feltöltés', 'purchase');
+INSERT INTO categories (name, category_type, business_area) VALUES
+  ('Büfé alapanyag',      'product',  'buffet'),
+  ('Büfé termék',         'product',  'buffet'),
+  ('Horgászcikk',         'product',  'fish'),
+  ('Hal',                 'product',  'fish'),
+  ('Horgászjegy',         'product',  'fish'),
+  ('Büfé bevétel',        'sale',     'buffet'),
+  ('Halas bevétel',       'sale',     'fish'),
+  ('Rendezvény bevétel',  'sale',     'event'),
+  ('Alapanyag beszerzés', 'purchase', 'other'),
+  ('Áru beszerzés',       'purchase', 'other');
