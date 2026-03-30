@@ -93,8 +93,8 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
           unit_id: '',
           units: null
         }
-
         setLocalProducts(prev => [...prev, newProd])
+        updateItem(quickAddItemId, 'productId', res.product.id)
 
         // 🔥 EZ A LÉNYEG: visszakötjük a sorhoz
         updateItem(quickAddItemId, 'productId', res.product.id)
@@ -317,21 +317,42 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
 
           <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 mt-4 border-t flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="text-right sm:text-left">
-              <span className="text-sm text-slate-500 uppercase font-bold block sm:inline mr-2">Összesen (Nettó):</span>
-              <span className="text-2xl font-black text-slate-900">{new Intl.NumberFormat('hu-HU', { style: 'currency', currency: 'HUF', maximumFractionDigits: 0 }).format(totalNet)}</span>
+              <span className="text-sm text-slate-500 uppercase font-bold block sm:inline mr-2">
+                Összesen (Nettó):
+              </span>
+              <span className="text-2xl font-black text-slate-900">
+                {new Intl.NumberFormat('hu-HU', {
+                  style: 'currency',
+                  currency: 'HUF',
+                  maximumFractionDigits: 0
+                }).format(totalNet)}
+              </span>
             </div>
+
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Mégse</Button>
+              <Button
+                variant="outline"
+                onClick={() => setIsOpen(false)}
+                disabled={isPending}
+              >
+                Mégse
+              </Button>
+
               <Button
                 className="bg-emerald-600 hover:bg-emerald-700 min-w-[150px] shadow-md shadow-emerald-200"
                 onClick={handleSubmit}
                 disabled={isPending}
               >
-                {isPending ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <ShoppingCart className="w-4 h-4 mr-2" />}
+                {isPending ? (
+                  <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                )}
                 Számla mentése
               </Button>
             </div>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
 
