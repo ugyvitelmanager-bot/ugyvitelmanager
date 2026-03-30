@@ -21,53 +21,26 @@ export async function recordPurchase(
   try {
     const supabase = await createClient()
 
-    // 1. Beszerzési fej mentése
-    const { data: purchase, error: purchaseError } = await (supabase.from('purchases') as any)
-      .insert({
-        date,
-        supplier_name: supplierName,
-        invoice_number: invoiceNumber,
-        payment_method: paymentMethod,
-        total_net: Math.round(totalNet * 100) // Fillérben tárolunk
-      })
-      .select('id')
-      .single()
-
-    if (purchaseError || !purchase) throw purchaseError || new Error('Hiba a beszerzési fej rögzítésekor.')
-
-    // 2. Tételek mentése és Készlet/Ár frissítése
-    for (const item of items) {
-      const unitPriceFiller = Math.round(item.unit_price_net * 100)
-      const lineTotalFiller = Math.round(item.quantity * unitPriceFiller)
-
-      const { error: itemError } = await (supabase.from('purchase_items') as any).insert({
-        purchase_id: purchase.id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        unit_id: item.unit_id,
-        unit_price_net: unitPriceFiller,
-        total_net: lineTotalFiller
+    // 1–4. Purchases fej + tételek + készlet + ár atomikus mentése RPC-n keresztül
+    const { data: purchaseId, error: coreError } = await supabase
+      .rpc('record_purchase_core', {
+        p_date: date,
+        p_supplier_name: supplierName,
+        p_invoice_number: invoiceNumber || null,
+        p_payment_method: paymentMethod,
+        p_total_net: Math.round(totalNet * 100),
+        p_items: items.map(item => ({
+          product_id: item.product_id,
+          quantity: item.quantity,
+          unit_id: item.unit_id,
+          unit_price_net: Math.round(item.unit_price_net * 100)
+        }))
       })
 
-      if (itemError) throw itemError
-
-      // Készlet és Utolsó ár frissítése a terméknél
-      // Megjegyzés: SQL-ben kényelmesebb lenne, de a Supabase SDK-val inkrementálunk
-      const { data: product } = await supabase.from('products').select('current_stock').eq('id', item.product_id).single()
-      const currentStock = (product as any)?.current_stock || 0
-
-      await (supabase.from('products') as any)
-        .update({
-          current_stock: Number(currentStock) + Number(item.quantity),
-          purchase_price_net: unitPriceFiller,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', item.product_id)
-    }
+    if (coreError || !purchaseId) throw coreError || new Error('Hiba a vásárlás rögzítésekor.')
 
     // 3. Pénztári mozgás generálása (ha KP vagy Tagi kölcsön)
     if (paymentMethod !== 'bank_transfer') {
-      let type = 'expense'
       let source = 'daily_kassza'
       let note = `Beszerzés: ${supplierName}${invoiceNumber ? ' (' + invoiceNumber + ')' : ''}`
 
@@ -75,26 +48,30 @@ export async function recordPurchase(
       if (paymentMethod === 'member_loan_cash') {
         source = 'petty_cash'
         note += ' - Tagi kölcsönből finanszírozva'
-        
+
         // Előbb bevételezzük a tagi kölcsönt a pénztárba
-        await (supabase.from('cash_transactions') as any).insert({
+        const { error: loanError } = await (supabase.from('cash_transactions') as any).insert({
           date,
           amount: Math.round(totalNet * 100),
           type: 'loan_in',
           source: 'petty_cash',
           note: `Tagi kölcsön beszerzéshez: ${supplierName}`,
-          purchase_id: purchase.id
+          purchase_id: purchaseId
         })
+
+        if (loanError) throw loanError
       }
 
-      await (supabase.from('cash_transactions') as any).insert({
+      const { error: expenseError } = await (supabase.from('cash_transactions') as any).insert({
         date,
         amount: Math.round(totalNet * 100),
         type: 'expense',
         source,
         note,
-        purchase_id: purchase.id
+        purchase_id: purchaseId
       })
+
+      if (expenseError) throw expenseError
     }
 
     revalidatePath('/beszerzes')
@@ -102,7 +79,7 @@ export async function recordPurchase(
     revalidatePath('/penztar')
     revalidatePath('/recipes')
 
-    return { success: true, id: purchase.id }
+    return { success: true, id: purchaseId }
   } catch (error: any) {
     console.error('Record purchase error:', error)
     return { success: false, error: error.message }
