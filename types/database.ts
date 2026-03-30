@@ -35,6 +35,7 @@ export interface Category {
   name: string
   category_type: CategoryType
   parent_id: string | null
+  business_area: BusinessArea
   is_active: boolean
   created_at: string
 }
@@ -95,6 +96,8 @@ export interface Product {
   default_sale_price_net: number | null
   default_sale_price_gross: number | null
   note: string | null
+  is_mohu_fee: boolean | null
+  current_stock: number | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -312,6 +315,70 @@ export interface Profile {
   created_at: string
 }
 
+// --- MVP táblák (purchases 4b, cash_transactions, daily_reports, purchase_line_items) ---
+
+export type PaymentMethod = 'cash_daily' | 'cash_petty' | 'bank_transfer' | 'member_loan_cash'
+
+export interface Purchase {
+  id: string
+  created_at: string | null
+  date: string
+  invoice_number: string | null
+  supplier_name: string
+  total_net: number          // BIGINT — fillér
+  payment_method: PaymentMethod
+  note: string | null
+  // Joins
+  purchase_line_items?: PurchaseLineItem[]
+}
+
+export interface PurchaseLineItem {
+  id: string
+  purchase_id: string
+  product_id: string
+  quantity: number           // NUMERIC(10,4)
+  unit_id: string
+  unit_price_net: number     // INTEGER — fillér
+  line_total_net: number     // BIGINT — fillér
+  created_at: string | null
+  // Joins
+  product?: Product
+  unit?: Unit
+}
+
+export interface CashTransaction {
+  id: string
+  created_at: string | null
+  date: string
+  amount: number             // BIGINT — fillér
+  type: string               // 'expense' | 'income' | 'loan_in' | stb.
+  source: string             // 'daily_kassza' | 'petty_cash' | stb.
+  note: string | null
+  purchase_id: string | null
+}
+
+export interface DailyReport {
+  id: string
+  created_at: string | null
+  date: string
+  business_area: string      // TEXT — nem enum, lásd schema megjegyzés
+  z_total_gross: number      // BIGINT — fillér
+  terminal_total_gross: number
+  cash_total_gross: number
+  vat_5_gross: number
+  vat_27_gross: number
+  vat_0_gross: number
+  note: string | null
+}
+
+// RPC args típus — a record_purchase_core p_items JSONB payload-hoz
+export interface PurchaseCoreItemInput {
+  product_id: string
+  quantity: number
+  unit_id: string
+  unit_price_net: number     // INTEGER fillér — a TS oldal konvertálja
+}
+
 // --- Supabase Wrapper Type ---
 export interface Database {
   public: {
@@ -340,6 +407,31 @@ export interface Database {
       storage_locations: { Row: StorageLocation; Insert: Partial<StorageLocation>; Update: Partial<StorageLocation> }
       serial_documents: { Row: SerialDocument; Insert: Partial<SerialDocument>; Update: Partial<SerialDocument> }
       serial_document_usages: { Row: SerialDocumentUsage; Insert: Partial<SerialDocumentUsage>; Update: Partial<SerialDocumentUsage> }
+      // MVP táblák
+      purchases: { Row: Purchase; Insert: Partial<Purchase>; Update: Partial<Purchase> ;Relationships: []}
+      purchase_line_items: { Row: PurchaseLineItem; Insert: Partial<PurchaseLineItem>; Update: Partial<PurchaseLineItem> ;Relationships: []}
+      cash_transactions: { Row: CashTransaction; Insert: Partial<CashTransaction>; Update: Partial<CashTransaction> ;Relationships: []}
+      daily_reports: { Row: DailyReport; Insert: Partial<DailyReport>; Update: Partial<DailyReport> ;Relationships: []}
+    }
+    Functions: {
+      record_purchase_core: {
+        Args: {
+          p_date: string
+          p_supplier_name: string
+          p_invoice_number: string | null
+          p_payment_method: PaymentMethod
+          p_total_net: number
+          p_items: PurchaseCoreItemInput[]
+        }
+        Returns: string   // purchases.id UUID
+      }
+      increment_product_stock: {
+        Args: {
+          p_product_id: string
+          p_quantity_delta: number
+        }
+        Returns: number   // új current_stock érték
+      }
     }
   }
 }
