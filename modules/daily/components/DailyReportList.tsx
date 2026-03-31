@@ -22,14 +22,13 @@ export function DailyReportList({ closings, purchaseTotalsByDate, year, month }:
   // Hónap összes napja (az elszámolás bejegyzett napjait megmutatjuk)
   // Csak a meglévő rekordokat és a KP bszerzeéses napokat jelenítjük meg,
   // plusz az aktuális hónap napjait (üresként)
-  const today = new Date()
+  const todayStr = new Date().toISOString().split('T')[0]
   const lastDay = new Date(year, month, 0).getDate()
   const days: string[] = []
   for (let d = lastDay; d >= 1; d--) {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    // Csak a múltbeli és mai napokat mutatjuk
-    const dt = new Date(dateStr + 'T12:00:00')
-    if (dt <= today) days.push(dateStr)
+    // YYYY-MM-DD string összehasonlítás — időzonától és napon belüli időponttól független
+    if (dateStr <= todayStr) days.push(dateStr)
   }
 
   // Havi összesítők
@@ -86,7 +85,7 @@ export function DailyReportList({ closings, purchaseTotalsByDate, year, month }:
                 <th className="text-left px-4 py-3 font-semibold text-slate-600">Dátum</th>
                 <th className="text-right px-4 py-3 font-semibold text-slate-600">Halas PG</th>
                 <th className="text-right px-4 py-3 font-semibold text-slate-600">Büfé PG</th>
-                <th className="text-right px-4 py-3 font-semibold text-slate-600">KP Bszerzeés</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-600">KP Beszerzés</th>
                 <th className="text-right px-4 py-3 font-semibold text-slate-600">Egyenleg</th>
                 <th className="text-right px-4 py-3 font-semibold text-slate-600">Tagi</th>
                 <th className="text-center px-4 py-3 font-semibold text-slate-600">Státusz</th>
@@ -99,7 +98,7 @@ export function DailyReportList({ closings, purchaseTotalsByDate, year, month }:
                   day: 'numeric',
                   weekday: 'short',
                 })
-                const isToday = date === today.toISOString().split('T')[0]
+                const isToday = date === todayStr
                 const hasLoan = formData ? formData.member_loan > 0 : false
                 const isNegative = summary ? summary.net_balance < 0 : false
 

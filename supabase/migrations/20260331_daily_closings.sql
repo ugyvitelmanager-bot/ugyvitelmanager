@@ -70,10 +70,12 @@ CREATE INDEX IF NOT EXISTS idx_daily_closing_expenses_closing
 ALTER TABLE daily_closings          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_closing_expenses  ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Authenticated users can manage daily_closings" ON daily_closings;
 CREATE POLICY "Authenticated users can manage daily_closings"
   ON daily_closings FOR ALL TO authenticated
   USING (true) WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Authenticated users can manage daily_closing_expenses" ON daily_closing_expenses;
 CREATE POLICY "Authenticated users can manage daily_closing_expenses"
   ON daily_closing_expenses FOR ALL TO authenticated
   USING (true) WITH CHECK (true);
