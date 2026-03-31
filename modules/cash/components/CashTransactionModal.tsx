@@ -112,7 +112,17 @@ export function CashTransactionModal() {
 
           <div className="space-y-2">
             <Label>Mozgás típusa</Label>
-            <Select value={type} onValueChange={(v: string | null) => v && setType(v as any)}>
+            <Select
+              value={type}
+              onValueChange={(v: string | null) => v && setType(v as any)}
+              items={{
+                expense:  'Kiadás (KP)',
+                income:   'Bevétel (Bevételezés)',
+                loan_in:  'Tagi Kölcsön (Befizetés)',
+                loan_out: 'Tagi Kölcsön (Kivétel)',
+                transfer: 'Pénztárközi átvezetés',
+              }}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -133,7 +143,14 @@ export function CashTransactionModal() {
 
           <div className="space-y-2">
             <Label>Forrás pénztár</Label>
-            <Select value={source} onValueChange={(v: string | null) => v && setSource(v as any)}>
+            <Select
+              value={source}
+              onValueChange={(v: string | null) => v && setSource(v as any)}
+              items={{
+                daily_kassza: 'Napi Kassza / Z-pénz',
+                petty_cash:   'Házipénztár',
+              }}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
