@@ -133,6 +133,8 @@ export function DailyReportForm({
           halas_27={formData.halas_27}
           halas_18={formData.halas_18}
           halas_am={formData.halas_am}
+          halas_pg_cash={formData.halas_pg_cash}
+          halas_pg_card={formData.halas_pg_card}
           total={summary.halas_pg_total}
           onChange={update}
         />
@@ -140,6 +142,8 @@ export function DailyReportForm({
           bufe_27={formData.bufe_27}
           bufe_5={formData.bufe_5}
           bufe_am={formData.bufe_am}
+          bufe_pg_cash={formData.bufe_pg_cash}
+          bufe_pg_card={formData.bufe_pg_card}
           total={summary.bufe_pg_total}
           onChange={update}
         />
@@ -147,12 +151,11 @@ export function DailyReportForm({
 
       {/* Terminál blokk */}
       <TerminalBlock
-        halas_bk_terminal={formData.halas_bk_terminal}
-        bufe_bk_terminal={formData.bufe_bk_terminal}
+        halas_terminal_card={formData.halas_terminal_card}
+        bufe_terminal_card={formData.bufe_terminal_card}
+        halas_pg_card={formData.halas_pg_card}
+        bufe_pg_card={formData.bufe_pg_card}
         total_bk={summary.total_bk}
-        halas_kp={summary.halas_kp}
-        bufe_kp={summary.bufe_kp}
-        total_kp={summary.total_kp}
         onChange={update}
       />
 

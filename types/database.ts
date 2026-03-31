@@ -379,17 +379,24 @@ export type DailyClosingStatus = 'draft' | 'final'
 export interface DailyClosing {
   id: string
   date: string
-  // HALAS PG (AP A17710081) — fillér
+  // HALAS PG (AP A17710081) — adónem bontás, fillér
   halas_27: number
   halas_18: number
   halas_am: number
-  // BÜFÉ PG (AP A19202513) — fillér
+  // HALAS fizetési mód bontás (PG szerint), fillér
+  halas_pg_cash: number
+  halas_pg_card: number
+  // HALAS terminál tényleges zárás, fillér
+  halas_terminal_card: number
+  // BÜFÉ PG (AP A19202513) — adónem bontás, fillér
   bufe_27: number
   bufe_5: number
   bufe_am: number
-  // Terminálok — fillér
-  halas_bk_terminal: number
-  bufe_bk_terminal: number
+  // BÜFÉ fizetési mód bontás (PG szerint), fillér
+  bufe_pg_cash: number
+  bufe_pg_card: number
+  // BÜFÉ terminál tényleges zárás, fillér
+  bufe_terminal_card: number
   // Tagi kölcsön — fillér
   member_loan: number
   member_loan_note: string | null

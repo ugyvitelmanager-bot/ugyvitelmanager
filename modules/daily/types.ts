@@ -13,17 +13,24 @@ export interface DailyClosingExpenseItem {
 }
 
 export interface DailyClosingFormData {
-  // HALAS pénztárgép (AP A17710081)
+  // HALAS pénztárgép (AP A17710081) — adónem bontás
   halas_27: number
   halas_18: number
   halas_am: number
-  // BÜFÉ pénztárgép (AP A19202513)
+  // HALAS fizetési mód bontás (PG szerint)
+  halas_pg_cash: number
+  halas_pg_card: number
+  // HALAS terminál tényleges zárás
+  halas_terminal_card: number
+  // BÜFÉ pénztárgép (AP A19202513) — adónem bontás
   bufe_27: number
   bufe_5: number
   bufe_am: number
-  // Bankkártya terminálok
-  halas_bk_terminal: number
-  bufe_bk_terminal: number
+  // BÜFÉ fizetési mód bontás (PG szerint)
+  bufe_pg_cash: number
+  bufe_pg_card: number
+  // BÜFÉ terminál tényleges zárás
+  bufe_terminal_card: number
   // Tagi kölcsön
   member_loan: number
   member_loan_note: string
@@ -41,11 +48,18 @@ export interface DailySummary {
   halas_pg_total: number
   bufe_pg_total: number
   total_pg: number
-  // Terminál / KP bontás (Forint)
-  total_bk: number
-  halas_kp: number
-  bufe_kp: number
-  total_kp: number
+  // PG fizetési mód összesítők (explicit, PG szerint)
+  total_pg_cash: number         // halas_pg_cash + bufe_pg_cash
+  total_pg_card: number         // halas_pg_card + bufe_pg_card
+  // PG egyezés ellenőrzés: pg_total − (pg_cash + pg_card); 0 = OK
+  halas_pg_diff: number
+  bufe_pg_diff: number
+  // BK eltérés: pg_card − terminal_card; 0 = OK
+  halas_bk_diff: number
+  bufe_bk_diff: number
+  // Terminál összesítő (Forint)
+  total_bk: number              // halas_terminal_card + bufe_terminal_card
+  total_kp: number              // = total_pg_cash (alias)
   // ÁFA bontás könyveléshez (Forint)
   total_27: number
   total_18: number

@@ -13,14 +13,24 @@ CREATE TABLE IF NOT EXISTS daily_closings (
   halas_18              INTEGER     NOT NULL DEFAULT 0,
   halas_am              INTEGER     NOT NULL DEFAULT 0,
 
+  -- HALAS fizetési mód bontás (PG szerint), fillér
+  halas_pg_cash         INTEGER     NOT NULL DEFAULT 0,
+  halas_pg_card         INTEGER     NOT NULL DEFAULT 0,
+
+  -- HALAS terminál tényleges zárás, fillér
+  halas_terminal_card   INTEGER     NOT NULL DEFAULT 0,
+
   -- BÜFÉ pénztárgép (AP A19202513) — adónem bontás, fillér
   bufe_27               INTEGER     NOT NULL DEFAULT 0,
   bufe_5                INTEGER     NOT NULL DEFAULT 0,
   bufe_am               INTEGER     NOT NULL DEFAULT 0,
 
-  -- Bankkártya terminál zárások, fillér
-  halas_bk_terminal     INTEGER     NOT NULL DEFAULT 0,
-  bufe_bk_terminal      INTEGER     NOT NULL DEFAULT 0,
+  -- BÜFÉ fizetési mód bontás (PG szerint), fillér
+  bufe_pg_cash          INTEGER     NOT NULL DEFAULT 0,
+  bufe_pg_card          INTEGER     NOT NULL DEFAULT 0,
+
+  -- BÜFÉ terminál tényleges zárás, fillér
+  bufe_terminal_card    INTEGER     NOT NULL DEFAULT 0,
 
   -- Tagi kölcsön (ha volt aznap bevitel), fillér
   member_loan           INTEGER     NOT NULL DEFAULT 0,

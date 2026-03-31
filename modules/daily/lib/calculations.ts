@@ -15,11 +15,21 @@ export function calculateDailySummary(
   const bufe_pg_total  = data.bufe_27  + data.bufe_5   + data.bufe_am
   const total_pg       = halas_pg_total + bufe_pg_total
 
-  // Terminál / KP bontás
-  const total_bk  = data.halas_bk_terminal + data.bufe_bk_terminal
-  const halas_kp  = halas_pg_total - data.halas_bk_terminal
-  const bufe_kp   = bufe_pg_total  - data.bufe_bk_terminal
-  const total_kp  = halas_kp + bufe_kp
+  // PG fizetési mód összesítők (explicit, PG szerint)
+  const total_pg_cash = data.halas_pg_cash + data.bufe_pg_cash
+  const total_pg_card = data.halas_pg_card + data.bufe_pg_card
+
+  // PG egyezés ellenőrzés: pg_total − (pg_cash + pg_card)
+  const halas_pg_diff = halas_pg_total - (data.halas_pg_cash + data.halas_pg_card)
+  const bufe_pg_diff  = bufe_pg_total  - (data.bufe_pg_cash  + data.bufe_pg_card)
+
+  // BK eltérés: PG szerint BK − terminál tényleges
+  const halas_bk_diff = data.halas_pg_card - data.halas_terminal_card
+  const bufe_bk_diff  = data.bufe_pg_card  - data.bufe_terminal_card
+
+  // Terminál összesítő
+  const total_bk = data.halas_terminal_card + data.bufe_terminal_card
+  const total_kp = total_pg_cash
 
   // ÁFA bontás
   const total_27 = data.halas_27 + data.bufe_27
@@ -36,7 +46,7 @@ export function calculateDailySummary(
 
   // Várható KP záróállás
   const expected_cash_closing =
-    total_kp
+    total_pg_cash
     + data.member_loan
     - cashPurchasesTotalFt
     - other_expenses_total
@@ -46,9 +56,13 @@ export function calculateDailySummary(
     halas_pg_total,
     bufe_pg_total,
     total_pg,
+    total_pg_cash,
+    total_pg_card,
+    halas_pg_diff,
+    bufe_pg_diff,
+    halas_bk_diff,
+    bufe_bk_diff,
     total_bk,
-    halas_kp,
-    bufe_kp,
     total_kp,
     total_27,
     total_18,
@@ -76,11 +90,15 @@ export const EMPTY_FORM_DATA: DailyClosingFormData = {
   halas_27: 0,
   halas_18: 0,
   halas_am: 0,
+  halas_pg_cash: 0,
+  halas_pg_card: 0,
+  halas_terminal_card: 0,
   bufe_27: 0,
   bufe_5: 0,
   bufe_am: 0,
-  halas_bk_terminal: 0,
-  bufe_bk_terminal: 0,
+  bufe_pg_cash: 0,
+  bufe_pg_card: 0,
+  bufe_terminal_card: 0,
   member_loan: 0,
   member_loan_note: '',
   petty_cash_movement: 0,

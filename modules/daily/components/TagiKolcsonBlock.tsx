@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+
 interface Props {
   member_loan: number
   member_loan_note: string
@@ -7,12 +9,12 @@ interface Props {
 }
 
 export function TagiKolcsonBlock({ member_loan, member_loan_note, onChange }: Props) {
-  const hasLoan = member_loan > 0
+  const [checked, setChecked] = useState(member_loan > 0)
 
   return (
     <div
       className={`border rounded-xl p-5 shadow-sm transition-colors ${
-        hasLoan
+        checked
           ? 'bg-amber-50 border-amber-200'
           : 'bg-white border-slate-200'
       }`}
@@ -25,10 +27,10 @@ export function TagiKolcsonBlock({ member_loan, member_loan_note, onChange }: Pr
         <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-700">
           <input
             type="checkbox"
-            checked={hasLoan}
+            checked={checked}
             onChange={(e) => {
+              setChecked(e.target.checked)
               if (!e.target.checked) onChange({ member_loan: 0, member_loan_note: '' })
-              else onChange({ member_loan: 0 })
             }}
             className="rounded border-slate-300 text-amber-500 focus:ring-amber-400"
           />
@@ -36,7 +38,7 @@ export function TagiKolcsonBlock({ member_loan, member_loan_note, onChange }: Pr
         </label>
       </div>
 
-      {hasLoan || member_loan > 0 ? (
+      {checked ? (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <input
@@ -65,9 +67,7 @@ export function TagiKolcsonBlock({ member_loan, member_loan_note, onChange }: Pr
             className="w-full border border-amber-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
           />
         </div>
-      ) : null}
-
-      {!hasLoan && member_loan === 0 && (
+      ) : (
         <p className="text-sm text-slate-400 italic">Nem volt szükség tagi kölcsönre.</p>
       )}
     </div>

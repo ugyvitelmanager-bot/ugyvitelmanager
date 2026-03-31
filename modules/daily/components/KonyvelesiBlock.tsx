@@ -23,8 +23,8 @@ export function KonyvelesiBlock({ summary }: Props) {
 
       <div className="space-y-1 pt-3 border-t border-slate-200">
         <SectionTitle>Fizetési mód</SectionTitle>
-        <Row label="Bankkártyás bevétel" value={summary.total_bk} />
-        <Row label="Készpénzes bevétel (számolt)" value={summary.total_kp} />
+        <Row label="Bankkártyás (terminál zárás)" value={summary.total_bk} />
+        <Row label="Készpénzes (PG szerint)" value={summary.total_kp} />
       </div>
     </div>
   )
