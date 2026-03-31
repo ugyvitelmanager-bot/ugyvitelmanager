@@ -1,11 +1,16 @@
 export type PaymentMethod = 'cash' | 'bank_transfer'
 
 export interface PurchaseLineItem {
-  id: string          // local key only, not persisted
+  id: string
+  kind: 'product' | 'cost'
+  // kind='product' mezők
   productId: string
   quantity: number
   unitId: string
   unitPrice: number   // Forintban, client-side
+  // kind='cost' mezők
+  description: string
+  amount: number      // Forintban, client-side
 }
 
 export interface PurchaseFormState {

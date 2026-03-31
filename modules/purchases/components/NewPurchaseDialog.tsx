@@ -37,17 +37,15 @@ export function NewPurchaseDialog({ products: initialProducts, units }: Props) {
 
   const [state, dispatch] = useReducer(purchaseFormReducer, null, getInitialState)
 
-  const totalNet = state.items.reduce(
-    (sum, i) => sum + Number(i.quantity) * Number(i.unitPrice),
-    0
-  )
+  // Termék sorok: qty * unitPrice; cost sorok: amount
+  const totalNet = state.items.reduce((sum, i) => {
+    if (i.kind === 'product') return sum + Number(i.quantity) * Number(i.unitPrice)
+    return sum + Number(i.amount)
+  }, 0)
 
   const handleOpen = (open: boolean) => {
     setIsOpen(open)
-    if (!open) {
-      // reset on close without disturbing localProducts (so quick-added products persist in session)
-      dispatch({ type: 'RESET' })
-    }
+    if (!open) dispatch({ type: 'RESET' })
   }
 
   const handleQuickAdd = (itemId: string) => {
@@ -76,17 +74,30 @@ export function NewPurchaseDialog({ products: initialProducts, units }: Props) {
 
     setIsPending(true)
     try {
+      const items = state.items.map(i => {
+        if (i.kind === 'product') {
+          return {
+            kind: 'product' as const,
+            product_id: i.productId,
+            quantity: Number(i.quantity),
+            unit_id: i.unitId,
+            unit_price_net: Number(i.unitPrice),
+          }
+        } else {
+          return {
+            kind: 'cost' as const,
+            description: i.description,
+            unit_price_net: Number(i.amount),
+          }
+        }
+      })
+
       const res = await recordPurchase(
         state.date,
         state.supplier,
         state.invoiceNumber,
         state.paymentMethod,
-        state.items.map(i => ({
-          product_id: i.productId,
-          quantity: Number(i.quantity),
-          unit_id: i.unitId,
-          unit_price_net: Number(i.unitPrice),
-        })),
+        items,
         totalNet
       )
 
@@ -138,7 +149,8 @@ export function NewPurchaseDialog({ products: initialProducts, units }: Props) {
               items={state.items}
               products={localProducts}
               units={units}
-              onAdd={() => dispatch({ type: 'ADD_ITEM' })}
+              onAddProduct={() => dispatch({ type: 'ADD_PRODUCT_ITEM' })}
+              onAddCost={() => dispatch({ type: 'ADD_COST_ITEM' })}
               onRemove={(id) => dispatch({ type: 'REMOVE_ITEM', id })}
               onProductSelect={(id, productId, unitId) =>
                 dispatch({ type: 'SELECT_PRODUCT', id, productId, unitId })

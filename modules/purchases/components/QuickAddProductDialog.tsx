@@ -24,9 +24,15 @@ interface Props {
   units: UnitOption[]
 }
 
+const PRODUCT_TYPE_LABELS: Record<string, string> = {
+  ingredient:   'Alapanyag (recepthez)',
+  stock_product: 'Készáru (viszonteladott)',
+}
+
 export function QuickAddProductDialog({ isOpen, onClose, onSuccess, units }: Props) {
   const [name, setName] = useState('')
   const [unitId, setUnitId] = useState('')
+  const [productType, setProductType] = useState<'ingredient' | 'stock_product'>('ingredient')
   const [isPending, setIsPending] = useState(false)
 
   const canSave = name.trim().length > 0 && unitId.length > 0
@@ -34,6 +40,7 @@ export function QuickAddProductDialog({ isOpen, onClose, onSuccess, units }: Pro
   const handleClose = () => {
     setName('')
     setUnitId('')
+    setProductType('ingredient')
     onClose()
   }
 
@@ -42,7 +49,7 @@ export function QuickAddProductDialog({ isOpen, onClose, onSuccess, units }: Pro
 
     setIsPending(true)
     try {
-      const res = await createNewMenuItem(name.trim(), undefined, 'stock_product', undefined, unitId)
+      const res = await createNewMenuItem(name.trim(), undefined, productType, undefined, unitId)
 
       if (res.success && res.product) {
         const unit = units.find(u => u.id === unitId)
@@ -55,6 +62,7 @@ export function QuickAddProductDialog({ isOpen, onClose, onSuccess, units }: Pro
         })
         setName('')
         setUnitId('')
+        setProductType('ingredient')
       } else {
         toast.error(res.error ?? 'A termék rögzítése nem sikerült.')
       }
@@ -86,6 +94,23 @@ export function QuickAddProductDialog({ isOpen, onClose, onSuccess, units }: Pro
               onKeyDown={(e) => { if (e.key === 'Enter' && canSave) handleSave() }}
               autoFocus
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="qa-type">Termék típusa <span className="text-red-500">*</span></Label>
+            <Select
+              value={productType}
+              onValueChange={(v: string | null) => v && setProductType(v as 'ingredient' | 'stock_product')}
+              items={PRODUCT_TYPE_LABELS}
+            >
+              <SelectTrigger id="qa-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ingredient">Alapanyag (recepthez)</SelectItem>
+                <SelectItem value="stock_product">Készáru (viszonteladott)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

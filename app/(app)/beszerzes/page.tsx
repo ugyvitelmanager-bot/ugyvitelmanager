@@ -26,6 +26,7 @@ export default async function BeszerzesPage() {
     (supabase.from('products') as any)
       .select('id, name, unit_id, units(id, symbol)')
       .eq('is_active', true)
+      .in('product_type', ['ingredient', 'stock_product'])
       .order('name'),
 
     (supabase.from('units') as any)

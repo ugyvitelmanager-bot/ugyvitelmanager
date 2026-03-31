@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Trash2, Sparkles } from 'lucide-react'
+import { Trash2, Sparkles, Package } from 'lucide-react'
 import type { PurchaseLineItem, ProductOption, UnitOption } from '../types'
 
 interface Props {
@@ -42,7 +42,22 @@ export function PurchaseLineRow({
   }
 
   return (
-    <div className="grid grid-cols-12 gap-2 items-end bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+    <div className="grid grid-cols-12 gap-2 items-end bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+      {/* Sor típus jelzés */}
+      {showHeaders && (
+        <div className="col-span-12 flex items-center gap-1.5 mb-1">
+          <Package className="w-3 h-3 text-slate-400" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Termék sor</span>
+        </div>
+      )}
+      {!showHeaders && (
+        <div className="col-span-12 -mb-1">
+          <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-slate-300">
+            <Package className="w-2.5 h-2.5" /> Termék
+          </span>
+        </div>
+      )}
+
       {/* Termék */}
       <div className="col-span-4 space-y-1">
         {showHeaders && (

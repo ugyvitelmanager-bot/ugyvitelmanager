@@ -1,12 +1,32 @@
 import type { PurchaseFormState, PurchaseLineItem, PaymentMethod } from '../types'
 
-function makeItem(): PurchaseLineItem {
+function makeId(): string {
+  return Math.random().toString(36).slice(2)
+}
+
+function makeProductItem(): PurchaseLineItem {
   return {
-    id: Math.random().toString(36).slice(2),
+    id: makeId(),
+    kind: 'product',
     productId: '',
     quantity: 1,
     unitId: '',
     unitPrice: 0,
+    description: '',
+    amount: 0,
+  }
+}
+
+function makeCostItem(): PurchaseLineItem {
+  return {
+    id: makeId(),
+    kind: 'cost',
+    productId: '',
+    quantity: 0,
+    unitId: '',
+    unitPrice: 0,
+    description: '',
+    amount: 0,
   }
 }
 
@@ -16,7 +36,7 @@ export function getInitialState(): PurchaseFormState {
     supplier: '',
     invoiceNumber: '',
     paymentMethod: 'cash',
-    items: [makeItem()],
+    items: [makeProductItem()],
   }
 }
 
@@ -25,9 +45,10 @@ export type PurchaseFormAction =
   | { type: 'SET_SUPPLIER'; value: string }
   | { type: 'SET_INVOICE'; value: string }
   | { type: 'SET_PAYMENT'; value: PaymentMethod }
-  | { type: 'ADD_ITEM' }
+  | { type: 'ADD_PRODUCT_ITEM' }
+  | { type: 'ADD_COST_ITEM' }
   | { type: 'REMOVE_ITEM'; id: string }
-  | { type: 'UPDATE_ITEM'; id: string; patch: Partial<Omit<PurchaseLineItem, 'id'>> }
+  | { type: 'UPDATE_ITEM'; id: string; patch: Partial<Omit<PurchaseLineItem, 'id' | 'kind'>> }
   | { type: 'SELECT_PRODUCT'; id: string; productId: string; unitId: string }
   | { type: 'RESET' }
 
@@ -44,8 +65,10 @@ export function purchaseFormReducer(
       return { ...state, invoiceNumber: action.value }
     case 'SET_PAYMENT':
       return { ...state, paymentMethod: action.value }
-    case 'ADD_ITEM':
-      return { ...state, items: [...state.items, makeItem()] }
+    case 'ADD_PRODUCT_ITEM':
+      return { ...state, items: [...state.items, makeProductItem()] }
+    case 'ADD_COST_ITEM':
+      return { ...state, items: [...state.items, makeCostItem()] }
     case 'REMOVE_ITEM':
       if (state.items.length <= 1) return state
       return { ...state, items: state.items.filter(i => i.id !== action.id) }
