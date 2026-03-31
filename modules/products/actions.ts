@@ -64,7 +64,7 @@ export async function updateProductPricing(
 export async function createNewMenuItem(
   name: string,
   categoryId?: string | null,
-  productType: 'recipe_product' | 'stock_product' = 'stock_product',
+  productType: 'ingredient' | 'recipe_product' | 'stock_product' = 'stock_product',
   vatRateId?: string | null,
   unitId?: string | null
 ) {
