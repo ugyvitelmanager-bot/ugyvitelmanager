@@ -15,10 +15,12 @@ import {
   Settings,
   Database,
   Wallet,
+  BookCheck,
 } from 'lucide-react'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Napi Elszámolás', href: '/napi-elszamolas', icon: BookCheck },
   { name: 'Bevétel & Z-zárás', href: '/bevetel', icon: Receipt },
   { name: 'Beszerzés & Készlet', href: '/beszerzes', icon: ShoppingCart },
   { name: 'Pénztár / Pénzkezelés', href: '/penztar', icon: Wallet },

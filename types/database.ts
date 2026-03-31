@@ -371,6 +371,47 @@ export interface DailyReport {
   note: string | null
 }
 
+// --- Napi elszámolás (daily_closings + daily_closing_expenses) ---
+// FÜGGETLEN a fenti DailyReport-tól (incomes modul / Z-report)
+
+export type DailyClosingStatus = 'draft' | 'final'
+
+export interface DailyClosing {
+  id: string
+  date: string
+  // HALAS PG (AP A17710081) — fillér
+  halas_27: number
+  halas_18: number
+  halas_am: number
+  // BÜFÉ PG (AP A19202513) — fillér
+  bufe_27: number
+  bufe_5: number
+  bufe_am: number
+  // Terminálok — fillér
+  halas_bk_terminal: number
+  bufe_bk_terminal: number
+  // Tagi kölcsön — fillér
+  member_loan: number
+  member_loan_note: string | null
+  // Házipénztár mozgás — fillér
+  petty_cash_movement: number
+  petty_cash_note: string | null
+  // Meta
+  notes: string | null
+  status: DailyClosingStatus
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface DailyClosingExpense {
+  id: string
+  daily_closing_id: string
+  amount: number   // fillér
+  note: string
+  sort_order: number
+  created_at: string | null
+}
+
 // RPC args típus — a record_purchase_core p_items JSONB payload-hoz
 export interface PurchaseCoreItemInput {
   product_id: string
@@ -412,6 +453,8 @@ export interface Database {
       purchase_line_items: { Row: PurchaseLineItem; Insert: Partial<PurchaseLineItem>; Update: Partial<PurchaseLineItem> ;Relationships: []}
       cash_transactions: { Row: CashTransaction; Insert: Partial<CashTransaction>; Update: Partial<CashTransaction> ;Relationships: []}
       daily_reports: { Row: DailyReport; Insert: Partial<DailyReport>; Update: Partial<DailyReport> ;Relationships: []}
+      daily_closings: { Row: DailyClosing; Insert: Partial<DailyClosing>; Update: Partial<DailyClosing>; Relationships: [] }
+      daily_closing_expenses: { Row: DailyClosingExpense; Insert: Partial<DailyClosingExpense>; Update: Partial<DailyClosingExpense>; Relationships: [] }
     }
     Functions: {
       record_purchase_core: {
