@@ -65,7 +65,8 @@ export async function createNewMenuItem(
   name: string,
   categoryId?: string | null,
   productType: 'recipe_product' | 'stock_product' = 'stock_product',
-  vatRateId?: string | null
+  vatRateId?: string | null,
+  unitId?: string | null
 ) {
   try {
     const supabase = await createClient()
@@ -86,12 +87,15 @@ export async function createNewMenuItem(
       finalVatRateId = vats.find(v => v.name === '27%')?.id || (vats.length > 0 ? vats[0].id : null)
     }
 
-    // 3. Alapértelmezett mértékegységek lekérése ('adag' recepteknek, 'db' egyébnek)
-    const { data: unitsRaw } = await supabase.from('units').select('id, symbol').in('symbol', ['adag', 'db'])
-    const units = (unitsRaw as any[]) || []
-    const adagUnit = units.find(u => u.symbol === 'adag')?.id
-    const dbUnit = units.find(u => u.symbol === 'db')?.id
-    const selectedUnitId = productType === 'recipe_product' ? adagUnit : dbUnit
+    // 3. Mértékegység: ha explicit meg van adva, azt használjuk; egyébként típus szerint auto
+    let selectedUnitId: string | null = unitId ?? null
+    if (!selectedUnitId) {
+      const { data: unitsRaw } = await supabase.from('units').select('id, symbol').in('symbol', ['adag', 'db'])
+      const units = (unitsRaw as any[]) || []
+      const adagUnit = units.find(u => u.symbol === 'adag')?.id
+      const dbUnit = units.find(u => u.symbol === 'db')?.id
+      selectedUnitId = productType === 'recipe_product' ? adagUnit : (dbUnit ?? (units.length > 0 ? units[0].id : null))
+    }
 
     // 4. Termék létrehozása a Raktárban (Products tábla)
     const { data: product, error: insertError } = await (supabase.from('products') as any)
@@ -100,7 +104,7 @@ export async function createNewMenuItem(
         category_id: finalCategoryId,
         product_type: productType,
         default_vat_rate_id: finalVatRateId,
-        unit_id: selectedUnitId || (units.length > 0 ? units[0].id : null),
+        unit_id: selectedUnitId,
         purchase_price_net: 0,
         default_sale_price_gross: 0,
         is_mohu_fee: false

@@ -20,7 +20,7 @@ import {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Napi Elszámolás', href: '/napi-elszamolas', icon: BookCheck },
-  { name: 'Beszerzés & Készlet', href: '/beszerzes', icon: ShoppingCart },
+  { name: 'Beszerzés & Készlet', href: '/beszerzés', icon: ShoppingCart },
   { name: 'Pénztár / Pénzkezelés', href: '/penztar', icon: Wallet },
   { name: 'Áruk / Alapanyagok', href: '/products', icon: Package },
   { name: 'Receptek', href: '/recipes', icon: BookOpen },

@@ -20,7 +20,7 @@ export function DailyReportList({ closings, purchaseTotalsByDate, year, month }:
   }
 
   // Hónap összes napja (az elszámolás bejegyzett napjait megmutatjuk)
-  // Csak a meglévő rekordokat és a KP bszerzeéses napokat jelenítjük meg,
+  // Csak a meglévő rekordokat és a KP beszerzéses napokat jelenítjük meg,
   // plusz az aktuális hónap napjait (üresként)
   const todayStr = new Date().toISOString().split('T')[0]
   const lastDay = new Date(year, month, 0).getDate()
@@ -64,7 +64,7 @@ export function DailyReportList({ closings, purchaseTotalsByDate, year, month }:
       {closings.length > 0 && (
         <div className="bg-slate-800 text-white rounded-xl p-5 grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard label="Összes PG" value={formatFt(monthTotalPg)} />
-          <StatCard label="KP bszerzeések" value={`−${formatFt(monthCashPurchases)}`} />
+          <StatCard label="KP beszerzések" value={`−${formatFt(monthCashPurchases)}`} />
           <StatCard
             label="Havi egyenleg"
             value={(monthNetBalance >= 0 ? '+' : '') + formatFt(monthNetBalance)}
