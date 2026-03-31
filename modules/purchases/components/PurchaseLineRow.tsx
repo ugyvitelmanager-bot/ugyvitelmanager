@@ -32,7 +32,8 @@ export function PurchaseLineRow({
 }: Props) {
   const showHeaders = index === 0
 
-  const handleProductChange = (productId: string) => {
+  const handleProductChange = (productId: string | null) => {
+    if (!productId) return
     const product = products.find(p => p.id === productId)
     onProductSelect(productId, product?.unit_id ?? '')
   }
