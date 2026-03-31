@@ -24,7 +24,6 @@ export async function recordCashTransaction(data: {
     if (error) throw error
 
     revalidatePath('/penztar')
-    revalidatePath('/bevetel')
 
     return { success: true }
   } catch (error: any) {

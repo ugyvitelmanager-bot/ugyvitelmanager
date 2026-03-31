@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
-  Receipt,
   ShoppingCart,
   Package,
   BookOpen,
@@ -21,7 +20,6 @@ import {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Napi Elszámolás', href: '/napi-elszamolas', icon: BookCheck },
-  { name: 'Bevétel & Z-zárás', href: '/bevetel', icon: Receipt },
   { name: 'Beszerzés & Készlet', href: '/beszerzes', icon: ShoppingCart },
   { name: 'Pénztár / Pénzkezelés', href: '/penztar', icon: Wallet },
   { name: 'Áruk / Alapanyagok', href: '/products', icon: Package },
