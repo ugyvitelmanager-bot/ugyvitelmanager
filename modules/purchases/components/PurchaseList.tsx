@@ -9,10 +9,8 @@ interface Props {
 }
 
 const PAYMENT_STYLE: Record<string, { border: string; badge: string }> = {
-  cash_daily:       { border: 'border-l-orange-400', badge: 'bg-orange-50 text-orange-700 border border-orange-200' },
-  cash_petty:       { border: 'border-l-orange-400', badge: 'bg-orange-50 text-orange-700 border border-orange-200' },
-  member_loan_cash: { border: 'border-l-blue-400',   badge: 'bg-blue-50 text-blue-700 border border-blue-200' },
-  bank_transfer:    { border: 'border-l-emerald-400', badge: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
+  cash:          { border: 'border-l-orange-400',  badge: 'bg-orange-50 text-orange-700 border border-orange-200' },
+  bank_transfer: { border: 'border-l-emerald-400', badge: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
 }
 
 export function PurchaseList({ purchases, fromDate }: Props) {

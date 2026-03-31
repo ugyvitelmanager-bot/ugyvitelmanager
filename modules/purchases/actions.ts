@@ -17,7 +17,7 @@ export async function recordPurchase(
   date: string,
   supplierName: string,
   invoiceNumber: string,
-  paymentMethod: 'cash_daily' | 'cash_petty' | 'bank_transfer' | 'member_loan_cash',
+  paymentMethod: 'cash' | 'bank_transfer',
   items: PurchaseItemInput[],
   totalNet: number // Forintban kapjuk
 ) {
@@ -44,37 +44,18 @@ export async function recordPurchase(
 
     if (coreError || !purchaseId) throw coreError || new Error('Hiba a vásárlás rögzítésekor.')
 
-    // 3. Pénztári mozgás generálása (ha KP vagy Tagi kölcsön)
-    if (paymentMethod !== 'bank_transfer') {
-      let source = 'daily_kassza'
-      let note = `Beszerzés: ${supplierName}${invoiceNumber ? ' (' + invoiceNumber + ')' : ''}`
+    // 3. Pénztári mozgás generálása (ha KP)
+    if (paymentMethod === 'cash') {
+      const note = `Beszerzés: ${supplierName}${invoiceNumber ? ' (' + invoiceNumber + ')' : ''}`
 
-      if (paymentMethod === 'cash_petty') source = 'petty_cash'
-      if (paymentMethod === 'member_loan_cash') {
-        source = 'petty_cash'
-        note += ' - Tagi kölcsönből finanszírozva'
-
-        // Előbb bevételezzük a tagi kölcsönt a pénztárba
-        const { error: loanError } = await (supabase.from('cash_transactions') as any).insert({
-  date,
-  amount: Math.round(totalNet * 100),
-  type: 'loan_in',
-  source: 'petty_cash',
-  note: `Tagi kölcsönből finanszírozott beszerzés - ${supplierName}`,
-  purchase_id: purchaseId
-})
-
-        if (loanError) throw loanError
-      }
-
-    const { error: expenseError } = await (supabase.from('cash_transactions') as any).insert({
-  date,
-  amount: Math.round(totalNet * 100),
-  type: 'expense',
-  source,
-  note,
-  purchase_id: purchaseId
-})
+      const { error: expenseError } = await (supabase.from('cash_transactions') as any).insert({
+        date,
+        amount: Math.round(totalNet * 100),
+        type: 'expense',
+        source: 'petty_cash',
+        note,
+        purchase_id: purchaseId
+      })
 
       if (expenseError) throw expenseError
     }

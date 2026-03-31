@@ -10,16 +10,12 @@ export const CLOSING_STATUS_BADGE: Record<DailyClosingStatus, string> = {
   final: 'bg-green-100 text-green-800 border border-green-300',
 }
 
-// Ezek a payment_method értékek számítanak napi KP kiadásnak
+// Ezek a payment_method értékek számítanak KP kiadásnak
 export const CASH_PAYMENT_METHODS = [
-  'cash_daily',
-  'cash_petty',
-  'member_loan_cash',
+  'cash',
 ] as const
 
 export const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  cash_daily:       'Napi Kassza (KP)',
-  cash_petty:       'Házipénztár (KP)',
-  member_loan_cash: 'Tagi Kölcsön (KP)',
-  bank_transfer:    'Banki Utalás',
+  cash:          'Készpénz (KP)',
+  bank_transfer: 'Banki Utalás',
 }

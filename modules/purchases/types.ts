@@ -1,4 +1,4 @@
-export type PaymentMethod = 'cash_daily' | 'cash_petty' | 'bank_transfer' | 'member_loan_cash'
+export type PaymentMethod = 'cash' | 'bank_transfer'
 
 export interface PurchaseLineItem {
   id: string          // local key only, not persisted

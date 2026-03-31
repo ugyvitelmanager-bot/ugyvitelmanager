@@ -9,7 +9,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { Wallet, PlusCircle, MinusCircle, UserPlus, RefreshCw, Landmark, History, ShoppingCart, UserCheck } from 'lucide-react'
+import {
+  Wallet, PlusCircle, MinusCircle, UserPlus, RefreshCw,
+  Landmark, History, ShoppingCart, UserCheck, AlertTriangle,
+  TrendingUp, TrendingDown,
+} from 'lucide-react'
 import { CashTransactionModal } from '@/modules/cash/components/CashTransactionModal'
 
 export const dynamic = 'force-dynamic'
@@ -17,8 +21,8 @@ export const dynamic = 'force-dynamic'
 export default async function PenztarPage() {
   const supabase = await createClient()
 
-  // 1. Tranzakciók lekérése
-  const { data: transactionsRaw, error } = await supabase
+  // 1. Pénztári tranzakciók (manuális + KP beszerzések)
+  const { data: transactionsRaw } = await supabase
     .from('cash_transactions')
     .select('*')
     .order('date', { ascending: false })
@@ -27,37 +31,75 @@ export default async function PenztarPage() {
 
   const transactions = (transactionsRaw as any[]) || []
 
-  // 2. Egyenlegek számítása
-  // Házipénztár
-  const pettyCashBalance = transactions
-    .filter(t => t.source === 'petty_cash')
-    .reduce((sum, t) => {
-      if (t.type === 'income' || t.type === 'loan_in') return sum + t.amount
-      if (t.type === 'expense' || t.type === 'loan_out' || t.type === 'transfer') return sum - t.amount
-      return sum
-    }, 0)
+  // 2. Lezárt napi elszámolások — napi KP bevétel + tagi kölcsön forrása
+  const { data: closingsRaw } = await (supabase.from('daily_closings') as any)
+    .select('date, halas_pg_cash, bufe_pg_cash, member_loan')
+    .eq('status', 'final')
 
-  // Tagi Kölcsön Egyenleg (Mennyivel tartozik a cég a tagnak összesen)
-  const memberLoanBalance = transactions.reduce((sum, t) => {
-    if (t.type === 'loan_in') return sum + t.amount
-    if (t.type === 'loan_out') return sum - t.amount
-    return sum
-  }, 0)
+  const closings = (closingsRaw as any[]) || []
+
+  // ============================================================
+  // Egységes cash egyenleg számítás
+  // ============================================================
+
+  // Forrás 1: cash_transactions (KP kiadások + manuális bevételek)
+  const txInflow = transactions
+    .filter(t => t.type === 'income' || t.type === 'loan_in')
+    .reduce((sum: number, t: any) => sum + t.amount, 0)
+
+  const txOutflow = transactions
+    .filter(t => t.type === 'expense' || t.type === 'loan_out' || t.type === 'transfer')
+    .reduce((sum: number, t: any) => sum + t.amount, 0)
+
+  // Forrás 2: daily_closings (final) — napi KP PG bevétel
+  const dailyKpInflow = closings
+    .reduce((sum: number, d: any) => sum + (d.halas_pg_cash || 0) + (d.bufe_pg_cash || 0), 0)
+
+  // Forrás 3: daily_closings (final) — tagi kölcsön
+  const dailyLoanInflow = closings
+    .reduce((sum: number, d: any) => sum + (d.member_loan || 0), 0)
+
+  const cashBalance = txInflow + dailyKpInflow + dailyLoanInflow - txOutflow
+  const isDeficit = cashBalance < 0
+
+  // Tagi kölcsön egyenleg (mennyi a cég tartozása a tagoknak)
+  const memberLoanBalance =
+    transactions
+      .filter(t => t.type === 'loan_in')
+      .reduce((sum: number, t: any) => sum + t.amount, 0)
+    + dailyLoanInflow
+    - transactions
+      .filter(t => t.type === 'loan_out')
+      .reduce((sum: number, t: any) => sum + t.amount, 0)
+
+  // ============================================================
+  // UI helpers
+  // ============================================================
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'income': return <PlusCircle className="w-4 h-4 text-emerald-600" />
-      case 'expense': return <MinusCircle className="w-4 h-4 text-red-600" />
-      case 'loan_in': return <UserPlus className="w-4 h-4 text-blue-600" />
-      case 'loan_out': return <UserPlus className="w-4 h-4 text-orange-600" />
-      case 'transfer': return <RefreshCw className="w-4 h-4 text-slate-500" />
+      case 'income':   return <PlusCircle  className="w-4 h-4 text-emerald-600" />
+      case 'expense':  return <MinusCircle className="w-4 h-4 text-red-600" />
+      case 'loan_in':  return <UserPlus    className="w-4 h-4 text-blue-600" />
+      case 'loan_out': return <UserPlus    className="w-4 h-4 text-orange-600" />
+      case 'transfer': return <RefreshCw   className="w-4 h-4 text-slate-500" />
       default: return null
     }
   }
 
-  const getSourceLabel = (source: string) => {
-    return source === 'daily_kassza' ? 'Napi Kassza' : 'Házipénztár'
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'income':   return 'Bevétel'
+      case 'expense':  return 'Kiadás'
+      case 'loan_in':  return 'Tagi Befizetés'
+      case 'loan_out': return 'Tagi Kivét'
+      case 'transfer': return 'Átvezetés'
+      default: return type
+    }
   }
+
+  const getSourceLabel = (source: string) =>
+    source === 'daily_kassza' ? 'Napi Kassza' : 'Házipénztár'
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -77,34 +119,92 @@ export default async function PenztarPage() {
         </div>
       </div>
 
-      {/* Balance Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-2xl border shadow-sm border-l-4 border-l-blue-500 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Házipénztár</span>
-            <Landmark className="w-5 h-5 text-blue-500" />
+      {/* Deficit jelzés — csak ha negatív */}
+      {isDeficit && (
+        <div className="bg-red-50 border border-red-300 rounded-xl p-5 flex items-start gap-4">
+          <AlertTriangle className="w-6 h-6 text-red-600 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-bold text-red-700 text-sm uppercase tracking-wide">Fedezethiány</p>
+            <p className="text-red-600 text-sm mt-1">
+              A készpénz egyenleg negatív:{' '}
+              <span className="font-mono font-black">{formatCurrency(cashBalance)}</span>.
+              A hiány összege:{' '}
+              <span className="font-mono font-black">{formatCurrency(Math.abs(cashBalance))}</span>.
+            </p>
+            <p className="text-red-500 text-[11px] mt-1">
+              Ez jelzi, hogy tagi kölcsön szükséges vagy a bevitelben hiány van.
+              A mentés nem blokkolt — rögzítsd a tagi kölcsönt a Pénzmozgás gombbal.
+            </p>
           </div>
-          <h2 className="text-3xl font-black text-slate-900">{formatCurrency(pettyCashBalance)}</h2>
-          <p className="text-[10px] text-slate-400">Üzemi házipénztár egyenlege.</p>
+        </div>
+      )}
+
+      {/* Balance Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Egységes készpénz egyenleg */}
+        <div className={`p-6 rounded-2xl border shadow-sm border-l-4 space-y-3 ${
+          isDeficit
+            ? 'bg-red-50 border-l-red-500 border-red-200'
+            : 'bg-white border-l-emerald-500'
+        }`}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              Készpénz egyenleg
+            </span>
+            {isDeficit
+              ? <TrendingDown className="w-5 h-5 text-red-500" />
+              : <TrendingUp   className="w-5 h-5 text-emerald-500" />
+            }
+          </div>
+          <h2 className={`text-3xl font-black ${isDeficit ? 'text-red-600' : 'text-slate-900'}`}>
+            {formatCurrency(cashBalance)}
+          </h2>
+          <p className="text-[10px] text-slate-400">
+            Napi KP bevétel + manuális befizetések − KP kiadások
+          </p>
         </div>
 
-        <div className="bg-indigo-900 p-6 rounded-2xl border shadow-xl border-l-4 border-l-indigo-400 space-y-3 text-white">
+        {/* Napi KP inflow összesítő */}
+        <div className="bg-white p-6 rounded-2xl border shadow-sm border-l-4 border-l-blue-400 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-indigo-300 uppercase tracking-widest">Tagi Kölcsön Egyenleg</span>
-            <UserCheck className="w-5 h-5 text-indigo-300" />
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Tagi Kölcsön Egyenleg</span>
+            <UserCheck className="w-5 h-5 text-blue-400" />
           </div>
-          <h2 className="text-3xl font-black">{formatCurrency(memberLoanBalance)}</h2>
-          <p className="text-[10px] text-indigo-300/80">Összesített bevitt magántőke.</p>
+          <h2 className="text-3xl font-black text-slate-900">{formatCurrency(memberLoanBalance)}</h2>
+          <p className="text-[10px] text-slate-400">
+            Összesített fennálló tartozás a tagoknak.
+          </p>
+        </div>
+
+        {/* KP inflow / outflow mini */}
+        <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-3">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Forgalom összesítő</span>
+          <div className="space-y-2 pt-1">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Összes KP bevétel</span>
+              <span className="font-mono font-bold text-emerald-600">+{formatCurrency(txInflow + dailyKpInflow + dailyLoanInflow)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Összes KP kiadás</span>
+              <span className="font-mono font-bold text-red-500">−{formatCurrency(txOutflow)}</span>
+            </div>
+            <div className="border-t pt-2 flex justify-between text-sm font-bold">
+              <span className="text-slate-700">Nettó</span>
+              <span className={`font-mono ${isDeficit ? 'text-red-600' : 'text-slate-800'}`}>
+                {formatCurrency(cashBalance)}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Transaction List */}
-       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="p-4 bg-slate-50 border-b flex items-center justify-between">
-            <h3 className="font-bold text-slate-700 uppercase text-xs tracking-widest flex items-center gap-2">
-              <History className="w-4 h-4" />
-              Pénztárnapló (Utolsó 100 mozgás)
-            </h3>
+          <h3 className="font-bold text-slate-700 uppercase text-xs tracking-widest flex items-center gap-2">
+            <History className="w-4 h-4" />
+            Pénztárnapló — manuális és KP beszerzések (utolsó 100)
+          </h3>
         </div>
         <div className="overflow-x-auto">
           <Table>
@@ -125,34 +225,34 @@ export default async function PenztarPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                transactions.map((t) => {
+                transactions.map((t: any) => {
                   const isNegative = t.type === 'expense' || t.type === 'loan_out' || t.type === 'transfer'
                   return (
                     <TableRow key={t.id} className="hover:bg-slate-50/50 transition-colors">
                       <TableCell className="px-6 py-4 font-medium text-slate-600">
-                        {new Date(t.date).toLocaleDateString('hu-HU')}
+                        {new Date(t.date + 'T12:00:00').toLocaleDateString('hu-HU')}
                       </TableCell>
                       <TableCell className="px-6 py-4">
                         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-tight">
-                           {getTypeIcon(t.type)}
-                           <span className={t.type === 'loan_in' || t.type === 'loan_out' ? 'text-blue-700' : ''}>
-                             {t.type === 'expense' ? 'Kiadás' : t.type === 'income' ? 'Bevétel' : t.type === 'loan_in' ? 'Tagi Befizetés' : t.type === 'loan_out' ? 'Tagi Kivét' : 'Átvezetés'}
-                           </span>
+                          {getTypeIcon(t.type)}
+                          <span className={t.type === 'loan_in' || t.type === 'loan_out' ? 'text-blue-700' : ''}>
+                            {getTypeLabel(t.type)}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell className="px-6 py-4">
-                         <span className="text-[10px] bg-slate-100 px-2 py-1 rounded font-bold text-slate-500 uppercase">
-                           {getSourceLabel(t.source)}
-                         </span>
+                        <span className="text-[10px] bg-slate-100 px-2 py-1 rounded font-bold text-slate-500 uppercase">
+                          {getSourceLabel(t.source)}
+                        </span>
                       </TableCell>
                       <TableCell className="px-6 py-4 text-sm text-slate-600">
                         <div className="flex items-center gap-2">
                           {t.purchase_id && <ShoppingCart className="w-3 h-3 text-emerald-600" />}
-                          {t.note || '-'}
+                          {t.note || '—'}
                         </div>
                       </TableCell>
                       <TableCell className={`px-6 py-4 text-right font-mono font-bold whitespace-nowrap ${isNegative ? 'text-red-500' : 'text-emerald-600'}`}>
-                        {isNegative ? '-' : '+'}{formatCurrency(t.amount)}
+                        {isNegative ? '−' : '+'}{formatCurrency(t.amount)}
                       </TableCell>
                     </TableRow>
                   )
@@ -160,6 +260,9 @@ export default async function PenztarPage() {
               )}
             </TableBody>
           </Table>
+        </div>
+        <div className="px-6 py-3 bg-slate-50 border-t text-[11px] text-slate-400">
+          A napi KP bevételek (PG zárások) és tagi kölcsönök a Napi elszámolás modulban rögzíthetők.
         </div>
       </div>
     </div>

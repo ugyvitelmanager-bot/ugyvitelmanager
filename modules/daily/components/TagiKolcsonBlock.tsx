@@ -40,6 +40,9 @@ export function TagiKolcsonBlock({ member_loan, member_loan_note, onChange }: Pr
 
       {checked ? (
         <div className="space-y-2">
+          <p className="text-[11px] text-amber-700 bg-amber-100 border border-amber-200 rounded px-2 py-1.5">
+            Ha ezt az összeget már felvetted a Pénztár modulban is, ne rögzítsd itt — az duplikációt okoz.
+          </p>
           <div className="flex items-center gap-2">
             <input
               type="number"

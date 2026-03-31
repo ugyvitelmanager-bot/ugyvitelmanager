@@ -124,6 +124,11 @@ export function CashTransactionModal() {
                 <SelectItem value="transfer">Pénztárközi átvezetés</SelectItem>
               </SelectContent>
             </Select>
+            {type === 'loan_in' && (
+              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                Ha ezt a tagi kölcsönt már rögzítetted a Napi elszámolásban, itt ne vidd fel újra — az duplikációt okoz.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

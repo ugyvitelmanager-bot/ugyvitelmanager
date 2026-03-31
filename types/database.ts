@@ -317,7 +317,7 @@ export interface Profile {
 
 // --- MVP táblák (purchases 4b, cash_transactions, daily_reports, purchase_line_items) ---
 
-export type PaymentMethod = 'cash_daily' | 'cash_petty' | 'bank_transfer' | 'member_loan_cash'
+export type PaymentMethod = 'cash' | 'bank_transfer'
 
 export interface Purchase {
   id: string

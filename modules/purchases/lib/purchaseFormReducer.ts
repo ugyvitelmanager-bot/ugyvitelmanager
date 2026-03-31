@@ -15,7 +15,7 @@ export function getInitialState(): PurchaseFormState {
     date: new Date().toISOString().split('T')[0],
     supplier: '',
     invoiceNumber: '',
-    paymentMethod: 'cash_daily',
+    paymentMethod: 'cash',
     items: [makeItem()],
   }
 }
