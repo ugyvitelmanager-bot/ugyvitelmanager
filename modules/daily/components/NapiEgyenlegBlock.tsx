@@ -25,7 +25,7 @@ export function NapiEgyenlegBlock({ summary, memberLoan }: Props) {
 
       <div className="space-y-1.5 mb-4">
         <SummaryRow label="Összes PG bevétel" value={summary.total_pg} />
-        <SummaryRow label="KP-ban fizetett beszerzeések" value={-summary.cash_purchases_total} negative />
+        <SummaryRow label="KP-ban fizetett beszerzések" value={-summary.cash_purchases_total} negative />
         {summary.other_expenses_total > 0 && (
           <SummaryRow label="Egyéb kiadások" value={-summary.other_expenses_total} negative />
         )}

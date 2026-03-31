@@ -15,14 +15,14 @@ export function CashPurchasesBlock({ purchases, totalFt }: Props) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
       <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-1">
-        📦 KP-ban fizetett beszerzeések
+        📦 KP-ban fizetett beszerzések
       </h3>
       <p className="text-[11px] text-slate-400 mb-4">
         Számla kelte alapján — átmeneti egyszerűsítés
       </p>
 
       {purchases.length === 0 ? (
-        <p className="text-sm text-slate-400 italic">Nincs KP-ban fizetett beszerzeés ezen a napon.</p>
+        <p className="text-sm text-slate-400 italic">Nincs KP-ban fizetett beszerzés ezen a napon.</p>
       ) : (
         <div className="space-y-1.5 mb-3">
           {purchases.map((p) => (
@@ -44,7 +44,7 @@ export function CashPurchasesBlock({ purchases, totalFt }: Props) {
       {purchases.length > 0 && (
         <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Összes KP beszerzeés
+            Összes KP beszerzés
           </span>
           <span className="font-mono font-bold text-slate-800">−{formatFt(totalFt)}</span>
         </div>

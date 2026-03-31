@@ -25,7 +25,7 @@ function fillerToFt(filler: number): number {
 // Lekérdezések
 // ============================================================
 
-/** Egyetlen nap betöltése + aznapi KP beszerzeések */
+/** Egyetlen nap betöltése + aznapi KP beszerzések */
 export async function getDailyClosing(date: string): Promise<{
   closing: any | null
   cashPurchases: CashPurchaseRecord[]
@@ -76,7 +76,7 @@ export async function getDailyClosings(year: number, month: number): Promise<{
   const closings = (closingsRes.data as any[]) || []
   const purchases = (purchasesRes.data as any[]) || []
 
-  // Napi KP beszerzeés összegek dátum szerint (Forintban)
+  // Napi KP beszerzés összegek dátum szerint (Forintban)
   const purchaseTotalsByDate: Record<string, number> = {}
   for (const p of purchases) {
     purchaseTotalsByDate[p.date] =
