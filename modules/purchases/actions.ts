@@ -79,7 +79,7 @@ export async function recordPurchase(
       if (expenseError) throw expenseError
     }
 
-    revalidatePath('/beszerzés')
+    revalidatePath('/beszerzes')
     revalidatePath('/products')
     revalidatePath('/penztar')
     revalidatePath('/recipes')

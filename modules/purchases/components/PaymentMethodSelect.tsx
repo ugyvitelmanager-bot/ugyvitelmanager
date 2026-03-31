@@ -13,6 +13,8 @@ interface Props {
 const isCash = (method: PaymentMethod) =>
   (CASH_PAYMENT_METHODS as readonly string[]).includes(method)
 
+const paymentItems = Object.fromEntries(Object.entries(PAYMENT_METHOD_LABELS))
+
 export function PaymentMethodSelect({ value, onChange }: Props) {
   return (
     <div className="space-y-2">
@@ -20,6 +22,7 @@ export function PaymentMethodSelect({ value, onChange }: Props) {
       <Select
         value={value}
         onValueChange={(v: string | null) => v && onChange(v as PaymentMethod)}
+        items={paymentItems}
       >
         <SelectTrigger id="payment" className="bg-white">
           <SelectValue />

@@ -93,6 +93,7 @@ export function QuickAddProductDialog({ isOpen, onClose, onSuccess, units }: Pro
             <Select
               value={unitId}
               onValueChange={(v: string | null) => v && setUnitId(v)}
+              items={Object.fromEntries(units.map(u => [u.id, `${u.symbol}${u.name ? ` – ${u.name}` : ''}`]))}
             >
               <SelectTrigger id="qa-unit">
                 <SelectValue placeholder="Válassz egységet..." />

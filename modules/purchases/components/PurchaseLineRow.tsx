@@ -32,6 +32,9 @@ export function PurchaseLineRow({
 }: Props) {
   const showHeaders = index === 0
 
+  const productItems = Object.fromEntries(products.map(p => [p.id, p.name]))
+  const unitItems = Object.fromEntries(units.map(u => [u.id, u.symbol]))
+
   const handleProductChange = (productId: string | null) => {
     if (!productId) return
     const product = products.find(p => p.id === productId)
@@ -51,6 +54,7 @@ export function PurchaseLineRow({
           <Select
             value={item.productId}
             onValueChange={handleProductChange}
+            items={productItems}
           >
             <SelectTrigger className="h-9 flex-1">
               <SelectValue placeholder="Válassz terméket..." />
@@ -93,6 +97,7 @@ export function PurchaseLineRow({
         <Select
           value={item.unitId}
           onValueChange={(v: string | null) => v && onUpdate({ unitId: v })}
+          items={unitItems}
         >
           <SelectTrigger className="h-9">
             <SelectValue placeholder="Egység" />
