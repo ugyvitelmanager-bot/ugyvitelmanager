@@ -22,11 +22,11 @@ export default async function BeszerzesPage() {
     .from('purchases')
     .select(`
       *,
-      purchase_items (
+      purchase_line_items (
         id,
         quantity,
         unit_price_net,
-        total_net,
+        line_total_net,
         product:products (name)
       )
     `)
@@ -123,7 +123,7 @@ export default async function BeszerzesPage() {
                         </div>
                       </TableCell>
                       <TableCell className="px-6 py-4 text-sm text-slate-600">
-                         {purchase.purchase_items?.length || 0} tétel
+                         {purchase.purchase_line_items?.length || 0} tétel
                       </TableCell>
                       <TableCell className="px-6 py-4 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
                         {formatCurrency(purchase.total_net)}

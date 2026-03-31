@@ -105,7 +105,7 @@ export async function createNewMenuItem(
         default_sale_price_gross: 0,
         is_mohu_fee: false
       })
-      .select('id, name')
+      .select('id, name, unit_id')
       .single()
 
     if (insertError || !product) throw insertError || new Error('Hiba a termék létrehozása közben.')
@@ -129,7 +129,7 @@ export async function createNewMenuItem(
     }
 
     // Visszatérünk a termékkel is, hogy a UI frissíthesse a listát
-    return { success: true, redirectUrl, product: { id: product.id, name: product.name } }
+    return { success: true, redirectUrl, product: { id: product.id, name: product.name, unit_id: product.unit_id as string | null } }
 
   } catch (error: any) {
     console.error('Create item error:', error)

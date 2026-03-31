@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ interface RecordPurchaseModalProps {
 }
 
 export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProps) {
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [isPending, setIsPending] = useState(false)
 
@@ -90,14 +92,19 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
         const newProd = {
           id: res.product.id,
           name: res.product.name,
-          unit_id: '',
+          unit_id: res.product.unit_id ?? '',
           units: null
         }
         setLocalProducts(prev => [...prev, newProd])
-        updateItem(quickAddItemId, 'productId', res.product.id)
-
-        // 🔥 EZ A LÉNYEG: visszakötjük a sorhoz
-        updateItem(quickAddItemId, 'productId', res.product.id)
+        const resolvedUnitId = res.product.unit_id ?? ''
+        if (!resolvedUnitId) {
+          toast.error('Az új termékhez nem sikerült egységet rendelni. Kérlek válassz egységet manuálisan.')
+        }
+        setItems(prev => prev.map(item =>
+          item.id === quickAddItemId
+            ? { ...item, productId: res.product.id, unitId: resolvedUnitId }
+            : item
+        ))
 
         setQuickAddName('')
         setQuickAddItemId(null)
@@ -130,6 +137,7 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
   const handleSubmit = async () => {
     if (!supplier) return toast.error('Kérlek add meg a beszállítót!')
     if (items.some(i => !i.productId || i.quantity <= 0)) return toast.error('Minden sorban válassz terméket és adj meg mennyiséget!')
+    if (items.some(i => !i.unitId)) return toast.error('Minden tételsorhoz kötelező egységet megadni!')
 
     setIsPending(true)
     try {
@@ -153,6 +161,7 @@ export function RecordPurchaseModal({ products, units }: RecordPurchaseModalProp
         setItems([{ id: Math.random().toString(), productId: '', quantity: 1, unitId: '', unitPrice: 0 }])
         setSupplier('')
         setInvoiceNumber('')
+        router.refresh()
       } else {
         toast.error(res.error)
       }
