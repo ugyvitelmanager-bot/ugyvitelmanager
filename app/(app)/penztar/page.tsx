@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { Wallet, PlusCircle, MinusCircle, UserPlus, RefreshCw, Landmark, ArrowUpRight, ArrowDownRight, History, Receipt, ShoppingCart, UserCheck } from 'lucide-react'
+import { Wallet, PlusCircle, MinusCircle, UserPlus, RefreshCw, Landmark, History, ShoppingCart, UserCheck } from 'lucide-react'
 import { CashTransactionModal } from '@/modules/cash/components/CashTransactionModal'
 
 export const dynamic = 'force-dynamic'
@@ -28,15 +28,6 @@ export default async function PenztarPage() {
   const transactions = (transactionsRaw as any[]) || []
 
   // 2. Egyenlegek számítása
-  // Napi Kassza (Z-pénz eredetű mozgások)
-  const dailyKasszaBalance = transactions
-    .filter(t => t.source === 'daily_kassza')
-    .reduce((sum, t) => {
-      if (t.type === 'income' || t.type === 'loan_in') return sum + t.amount
-      if (t.type === 'expense' || t.type === 'loan_out' || t.type === 'transfer') return sum - t.amount
-      return sum
-    }, 0)
-
   // Házipénztár
   const pettyCashBalance = transactions
     .filter(t => t.source === 'petty_cash')
@@ -87,16 +78,7 @@ export default async function PenztarPage() {
       </div>
 
       {/* Balance Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl border shadow-sm border-l-4 border-l-orange-500 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Napi Kassza (Z)</span>
-            <Wallet className="w-5 h-5 text-orange-500" />
-          </div>
-          <h2 className="text-3xl font-black text-slate-900">{formatCurrency(dailyKasszaBalance)}</h2>
-          <p className="text-[10px] text-slate-400">Aktuális készpénz a napi zárásokból.</p>
-        </div>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-2xl border shadow-sm border-l-4 border-l-blue-500 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Házipénztár</span>
