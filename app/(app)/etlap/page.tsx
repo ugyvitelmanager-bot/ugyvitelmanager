@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { formatCurrency } from '@/lib/finance'
+import { formatCurrency, MOHU_FEE_FILLER } from '@/lib/finance'
 import {
   Table,
   TableBody,
@@ -75,7 +75,7 @@ export default async function EtlapPage({ searchParams }: PageProps) {
     products = products.filter(p => getJoined(p.categories)?.business_area === areaFilter)
   }
 
-  const MOHU_FEE = 5000
+  const MOHU_FEE = MOHU_FEE_FILLER
   const categoryOptions = categories.map(c => ({ value: c.id, label: c.name }))
   const currentParams: Record<string, string> = {
     ...(queryStr && { q: queryStr }),

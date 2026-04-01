@@ -4,6 +4,71 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Database } from '@/types/database'
 
+export async function deletePurchase(purchaseId: string) {
+  try {
+    const supabase = await createClient()
+
+    // Ha volt KP tranzakció hozzá, azt is töröljük
+    await (supabase.from('cash_transactions') as any)
+      .delete()
+      .eq('purchase_id', purchaseId)
+
+    const { error } = await (supabase.from('purchases') as any)
+      .delete()
+      .eq('id', purchaseId)
+
+    if (error) throw error
+
+    revalidatePath('/beszerzes')
+    revalidatePath('/penztar')
+    revalidatePath('/products')
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('Delete purchase error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function updatePurchaseHeader(
+  purchaseId: string,
+  date: string,
+  supplierName: string,
+  invoiceNumber: string,
+  paymentMethod: 'cash' | 'bank_transfer'
+) {
+  try {
+    const supabase = await createClient()
+
+    const { error } = await (supabase.from('purchases') as any)
+      .update({
+        date,
+        supplier_name: supplierName,
+        invoice_number: invoiceNumber || null,
+        payment_method: paymentMethod,
+      })
+      .eq('id', purchaseId)
+
+    if (error) throw error
+
+    // Ha KP tranzakció is van hozzá, frissítjük a megjegyzését és dátumát
+    await (supabase.from('cash_transactions') as any)
+      .update({
+        date,
+        note: `Beszerzés: ${supplierName}${invoiceNumber ? ' (' + invoiceNumber + ')' : ''}`,
+      })
+      .eq('purchase_id', purchaseId)
+
+    revalidatePath('/beszerzes')
+    revalidatePath('/penztar')
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('Update purchase error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
 type RecordPurchaseCoreArgs = Database['public']['Functions']['record_purchase_core']['Args']
 
 export type PurchaseItemInput =

@@ -10,11 +10,10 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import {
-  Wallet, PlusCircle, MinusCircle, UserPlus, RefreshCw,
-  Landmark, History, ShoppingCart, UserCheck, AlertTriangle,
-  TrendingUp, TrendingDown,
+  Wallet, History, UserCheck, AlertTriangle, TrendingUp, TrendingDown,
 } from 'lucide-react'
 import { CashTransactionModal } from '@/modules/cash/components/CashTransactionModal'
+import { CashTransactionTable } from '@/modules/cash/components/CashTransactionTable'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,31 +74,6 @@ export default async function PenztarPage() {
   // ============================================================
   // UI helpers
   // ============================================================
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'income':   return <PlusCircle  className="w-4 h-4 text-emerald-600" />
-      case 'expense':  return <MinusCircle className="w-4 h-4 text-red-600" />
-      case 'loan_in':  return <UserPlus    className="w-4 h-4 text-blue-600" />
-      case 'loan_out': return <UserPlus    className="w-4 h-4 text-orange-600" />
-      case 'transfer': return <RefreshCw   className="w-4 h-4 text-slate-500" />
-      default: return null
-    }
-  }
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'income':   return 'Bevétel'
-      case 'expense':  return 'Kiadás'
-      case 'loan_in':  return 'Tagi Befizetés'
-      case 'loan_out': return 'Tagi Kivét'
-      case 'transfer': return 'Átvezetés'
-      default: return type
-    }
-  }
-
-  const getSourceLabel = (source: string) =>
-    source === 'daily_kassza' ? 'Napi Kassza' : 'Házipénztár'
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -215,49 +189,11 @@ export default async function PenztarPage() {
                 <TableHead className="font-semibold px-6 py-4">Forrás</TableHead>
                 <TableHead className="font-semibold px-6 py-4">Megjegyzés / Bizonylat</TableHead>
                 <TableHead className="text-right font-semibold px-6 py-4">Összeg</TableHead>
+                <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-40 text-center text-muted-foreground italic">
-                    Nincs még rögzített pénztári mozgás.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                transactions.map((t: any) => {
-                  const isNegative = t.type === 'expense' || t.type === 'loan_out' || t.type === 'transfer'
-                  return (
-                    <TableRow key={t.id} className="hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="px-6 py-4 font-medium text-slate-600">
-                        {new Date(t.date + 'T12:00:00').toLocaleDateString('hu-HU')}
-                      </TableCell>
-                      <TableCell className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-tight">
-                          {getTypeIcon(t.type)}
-                          <span className={t.type === 'loan_in' || t.type === 'loan_out' ? 'text-blue-700' : ''}>
-                            {getTypeLabel(t.type)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-6 py-4">
-                        <span className="text-[10px] bg-slate-100 px-2 py-1 rounded font-bold text-slate-500 uppercase">
-                          {getSourceLabel(t.source)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-6 py-4 text-sm text-slate-600">
-                        <div className="flex items-center gap-2">
-                          {t.purchase_id && <ShoppingCart className="w-3 h-3 text-emerald-600" />}
-                          {t.note || '—'}
-                        </div>
-                      </TableCell>
-                      <TableCell className={`px-6 py-4 text-right font-mono font-bold whitespace-nowrap ${isNegative ? 'text-red-500' : 'text-emerald-600'}`}>
-                        {isNegative ? '−' : '+'}{formatCurrency(t.amount)}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
+              <CashTransactionTable transactions={transactions} />
             </TableBody>
           </Table>
         </div>

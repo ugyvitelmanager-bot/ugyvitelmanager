@@ -10,12 +10,12 @@ import {
 
 export default function Home() {
   const actions = [
-    { name: 'Új Bevétel', href: '/sales/new', icon: Receipt, color: 'text-green-600', bg: 'bg-green-100' },
-    { name: 'Új Beszerzes', href: '/purchases/new', icon: ShoppingCart, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { name: 'Készlet Kezelés', href: '/inventory', icon: Package, color: 'text-purple-600', bg: 'bg-purple-100' },
-    { name: 'Leltár', href: '/inventory/check', icon: ClipboardList, color: 'text-orange-600', bg: 'bg-orange-100' },
-    { name: 'Riportok', href: '/reports', icon: BarChart3, color: 'text-indigo-600', bg: 'bg-indigo-100' },
-    { name: 'Új Termék', href: '/products/new', icon: PlusCircle, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    { name: 'Napi Elszámolás', href: '/napi-elszamolas', icon: Receipt, color: 'text-green-600', bg: 'bg-green-100' },
+    { name: 'Új Beszerzés', href: '/beszerzes', icon: ShoppingCart, color: 'text-blue-600', bg: 'bg-blue-100' },
+    { name: 'Alapanyagok', href: '/products', icon: Package, color: 'text-purple-600', bg: 'bg-purple-100' },
+    { name: 'Étlap', href: '/etlap', icon: ClipboardList, color: 'text-orange-600', bg: 'bg-orange-100' },
+    { name: 'Receptúrák', href: '/recipes', icon: BarChart3, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+    { name: 'Pénztár', href: '/penztar', icon: PlusCircle, color: 'text-emerald-600', bg: 'bg-emerald-100' },
   ]
 
   return (

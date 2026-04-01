@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { ArrowLeft, Edit3, Tag, BarChart, UtensilsCrossed } from 'lucide-react'
 import { TermekPricingForm } from '@/modules/products/components/TermekPricingForm'
 import { TermekBasicInfoForm } from '@/modules/products/components/TermekBasicInfoForm'
-import { formatCurrency } from '@/lib/finance'
+import { formatCurrency, MOHU_FEE_FILLER } from '@/lib/finance'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -125,7 +125,7 @@ export default async function EtlapItemPage({ params }: PageProps) {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-slate-500">MOHU díj (AAM)</span>
                 <span className={`font-mono text-sm font-semibold ${product.is_mohu_fee ? 'text-orange-600' : 'text-slate-400'}`}>
-                  {product.is_mohu_fee ? '+50 Ft' : 'Nincs'}
+                  {product.is_mohu_fee ? `+${formatCurrency(MOHU_FEE_FILLER)}` : 'Nincs'}
                 </span>
               </div>
             </div>

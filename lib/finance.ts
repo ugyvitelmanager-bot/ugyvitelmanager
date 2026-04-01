@@ -4,6 +4,9 @@
 // 1 Ft = 100 fillér
 // ============================================================
 
+/** MOHU AAM díj fillérben (50 Ft = 5000 fillér) */
+export const MOHU_FEE_FILLER = 5000
+
 /**
  * Bruttó összegből ÁFA összeg kiszámítása (fillérben)
  */
