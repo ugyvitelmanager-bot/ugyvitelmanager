@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Edit3, Tag, BarChart } from 'lucide-react'
 import { TermekPricingForm } from '@/modules/products/components/TermekPricingForm'
+import { TermekBasicInfoForm } from '@/modules/products/components/TermekBasicInfoForm'
 import { formatCurrency } from '@/lib/finance'
 
 interface PageProps {
@@ -13,19 +14,25 @@ export default async function EtlapItemPage({ params }: PageProps) {
   const supabase = await createClient()
   const { id } = await params
 
-  // 1. Termék adatainak lekérése
-  const { data: productRaw } = await supabase
-    .from('products')
-    .select(`
-      *,
-      categories(name),
-      vat_rates(rate_percent)
-    `)
-    .eq('id', id)
-    .single()
+  // 1. Termék + törzs adatok párhuzamos lekérése
+  const [{ data: productRaw }, { data: categoriesRaw }, { data: unitsRaw }, { data: vatRatesRaw }] =
+    await Promise.all([
+      supabase
+        .from('products')
+        .select('*, categories(id, name), vat_rates(id, rate_percent)')
+        .eq('id', id)
+        .single(),
+      supabase.from('categories').select('id, name').order('name'),
+      supabase.from('units').select('id, symbol').order('symbol'),
+      supabase.from('vat_rates').select('id, rate_percent').eq('is_active', true).order('rate_percent'),
+    ])
 
   if (!productRaw) notFound()
   const product = productRaw as any
+
+  const categories = (categoriesRaw as any[]) ?? []
+  const units = (unitsRaw as any[]) ?? []
+  const vatRates = (vatRatesRaw as any[]) ?? []
 
   // 2. Törzsadatok kinyerése
   const categoryName = product.categories?.name || 'Besorolatlan'
@@ -56,9 +63,20 @@ export default async function EtlapItemPage({ params }: PageProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Árazó Kalkulátor (2 oszlop) */}
+        {/* Bal oldal: Alap adatok + Árazó Kalkulátor (2 oszlop) */}
         <div className="md:col-span-2 space-y-6">
-          <TermekPricingForm 
+          <TermekBasicInfoForm
+            productId={product.id}
+            initialName={product.name}
+            initialCategoryId={product.category_id ?? ''}
+            initialUnitId={product.unit_id ?? ''}
+            initialVatRateId={product.default_vat_rate_id ?? ''}
+            productType={product.product_type}
+            categories={categories}
+            units={units}
+            vatRates={vatRates}
+          />
+          <TermekPricingForm
             productId={product.id}
             initialNetCost={product.purchase_price_net || 0}
             initialGrossSale={product.default_sale_price_gross || 0}

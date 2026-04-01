@@ -61,6 +61,38 @@ export async function updateProductPricing(
   }
 }
 
+export async function updateProductBasicInfo(
+  id: string,
+  name: string,
+  categoryId: string,
+  unitId: string,
+  vatRateId: string,
+) {
+  try {
+    const supabase = await createClient()
+    const { error } = await (supabase.from('products') as any)
+      .update({
+        name: name.trim(),
+        category_id: categoryId,
+        unit_id: unitId,
+        default_vat_rate_id: vatRateId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+
+    if (error) throw error
+
+    revalidatePath(`/etlap/${id}`)
+    revalidatePath('/etlap')
+    revalidatePath('/recipes')
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('Basic info update error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
 export async function createNewMenuItem(
   name: string,
   categoryId?: string | null,
