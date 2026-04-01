@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { X } from 'lucide-react'
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -32,13 +33,22 @@ const navigation = [
   { name: 'Adatbázis Import', href: '/settings/import', icon: Database },
 ]
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  mobileOpen: boolean
+  onMobileClose: () => void
+}
+
+function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
   const pathname = usePathname()
 
   return (
-    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-gray-900 border-r border-gray-800">
+    <>
       <div className="flex h-16 shrink-0 items-center px-6">
-        <Link href="/" className="text-xl font-bold text-white tracking-tight uppercase hover:text-gray-300 transition-colors">
+        <Link
+          href="/"
+          onClick={onLinkClick}
+          className="text-xl font-bold text-white tracking-tight uppercase hover:text-gray-300 transition-colors"
+        >
           Ügyvitel Manager
         </Link>
       </div>
@@ -50,29 +60,63 @@ export function AppSidebar() {
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={onLinkClick}
                 className={`
                   group flex items-center px-3 py-2 text-sm font-medium rounded-md
                   ${
                     isActive
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                   }
-                  transition-colors
                 `}
               >
                 <item.icon
-                  className={`
-                    mr-3 h-5 w-5 flex-shrink-0
-                    ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-400'}
-                  `}
-                  aria-hidden="true"
+                  className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                    isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-300'
+                  }`}
                 />
-                <span className="truncate">{item.name}</span>
+                {item.name}
               </Link>
             )
           })}
         </nav>
       </div>
-    </div>
+    </>
+  )
+}
+
+export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-gray-900 border-r border-gray-800">
+        <SidebarContent />
+      </div>
+
+      {/* Mobile overlay + drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 flex md:hidden">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-gray-900/80"
+            onClick={onMobileClose}
+            aria-hidden="true"
+          />
+          {/* Drawer */}
+          <div className="relative flex w-64 flex-col bg-gray-900 border-r border-gray-800">
+            <div className="absolute top-4 right-4">
+              <button
+                type="button"
+                onClick={onMobileClose}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <SidebarContent onLinkClick={onMobileClose} />
+          </div>
+        </div>
+      )}
+    </>
   )
 }

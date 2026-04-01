@@ -18,9 +18,10 @@ import type { Profile } from '@/types/database'
 interface HeaderProps {
   user: User | null
   profile: Profile | null
+  onMenuClick: () => void
 }
 
-export function Header({ user, profile }: HeaderProps) {
+export function Header({ user, profile, onMenuClick }: HeaderProps) {
   const initials = profile?.full_name
     ? profile.full_name.substring(0, 2).toUpperCase()
     : user?.email?.substring(0, 2).toUpperCase() || 'BM'
@@ -29,9 +30,10 @@ export function Header({ user, profile }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-10 flex h-16 flex-shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-      {/* Mobile menu button (TODO: add sheet logic for mobile sidebar) */}
+      {/* Mobile menu button */}
       <button
         type="button"
+        onClick={onMenuClick}
         className="-m-2.5 p-2.5 text-gray-700 md:hidden"
       >
         <span className="sr-only">Open sidebar</span>
