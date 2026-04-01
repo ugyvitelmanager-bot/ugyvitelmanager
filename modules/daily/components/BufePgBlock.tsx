@@ -37,7 +37,7 @@ function FtInput({
       onChange={(e) =>
         onChange(e.target.value === '' ? 0 : Math.max(0, Math.round(parseFloat(e.target.value) || 0)))
       }
-      className={`w-40 text-right font-mono border border-slate-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 ${colorClass} bg-white`}
+      className={`w-28 sm:w-40 text-right font-mono border border-slate-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 ${colorClass} bg-white`}
     />
   )
 }
@@ -105,7 +105,7 @@ export function BufePgBlock({ bufe_27, bufe_5, bufe_am, bufe_pg_cash, bufe_pg_ca
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-slate-600 w-36">{label}</span>
+      <span className="text-sm text-slate-600 flex-1 min-w-0">{label}</span>
       <div className="flex items-center gap-1.5">
         {children}
         <span className="text-xs text-slate-400">Ft</span>

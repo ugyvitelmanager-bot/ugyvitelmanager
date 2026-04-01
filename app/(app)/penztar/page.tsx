@@ -20,21 +20,20 @@ export const dynamic = 'force-dynamic'
 export default async function PenztarPage() {
   const supabase = await createClient()
 
-  // 1. Pénztári tranzakciók (manuális + KP beszerzések)
-  const { data: transactionsRaw } = await supabase
-    .from('cash_transactions')
-    .select('*')
-    .order('date', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(100)
+  // 1+2. Párhuzamos lekérés
+  const [{ data: transactionsRaw }, { data: closingsRaw }] = await Promise.all([
+    supabase
+      .from('cash_transactions')
+      .select('*')
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(100),
+    (supabase.from('daily_closings') as any)
+      .select('date, halas_pg_cash, bufe_pg_cash, member_loan')
+      .eq('status', 'final'),
+  ])
 
   const transactions = (transactionsRaw as any[]) || []
-
-  // 2. Lezárt napi elszámolások — napi KP bevétel + tagi kölcsön forrása
-  const { data: closingsRaw } = await (supabase.from('daily_closings') as any)
-    .select('date, halas_pg_cash, bufe_pg_cash, member_loan')
-    .eq('status', 'final')
-
   const closings = (closingsRaw as any[]) || []
 
   // ============================================================

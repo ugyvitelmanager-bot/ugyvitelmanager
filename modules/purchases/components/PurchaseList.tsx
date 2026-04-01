@@ -96,8 +96,8 @@ export function PurchaseList({ purchases, fromDate }: Props) {
 
   return (
     <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-      {/* Fejléc */}
-      <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-slate-50 border-b text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+      {/* Fejléc — csak desktop */}
+      <div className="hidden sm:grid grid-cols-12 gap-2 px-4 py-2 bg-slate-50 border-b text-[10px] font-bold text-slate-400 uppercase tracking-widest">
         <div className="col-span-2">Dátum</div>
         <div className="col-span-3">Beszállító</div>
         <div className="col-span-2">Fizetés</div>
@@ -167,52 +167,68 @@ export function PurchaseList({ purchases, fromDate }: Props) {
             )
           }
 
+          const actionButtons = (
+            <>
+              <Button
+                variant="ghost" size="icon"
+                onClick={() => handleEditOpen(p)}
+                className="h-7 w-7 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                title="Szerkesztés"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="ghost" size="icon"
+                onClick={() => handleDelete(p.id)}
+                disabled={isDeleting}
+                className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                title="Törlés"
+              >
+                {isDeleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              </Button>
+            </>
+          )
+
           return (
             <div
               key={p.id}
-              className={`grid grid-cols-12 gap-2 px-4 py-3 items-center border-l-4 ${style.border} hover:bg-slate-50/50 transition-colors ${isDeleting ? 'opacity-40' : ''}`}
+              className={`border-l-4 ${style.border} hover:bg-slate-50/50 transition-colors ${isDeleting ? 'opacity-40' : ''}`}
             >
-              <div className="col-span-2 text-sm font-medium text-slate-600 tabular-nums">
-                {dateStr}
+              {/* Mobile kártya layout */}
+              <div className="sm:hidden flex items-start justify-between px-4 py-3 gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-sm font-medium text-slate-600 tabular-nums">{dateStr}</span>
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${style.badge}`}>{label}</span>
+                  </div>
+                  <p className="font-semibold text-slate-900 text-sm truncate">{p.supplier_name}</p>
+                  <p className="text-[11px] text-slate-400 truncate">{p.invoice_number ?? '—'}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="font-mono font-bold text-slate-900 text-sm whitespace-nowrap">{formatCurrency(p.total_net)}</p>
+                  <div className="flex gap-1 mt-1 justify-end">{actionButtons}</div>
+                </div>
               </div>
 
-              <div className="col-span-3">
-                <p className="font-semibold text-slate-900 text-sm truncate">{p.supplier_name}</p>
-                <p className="text-[11px] text-slate-400 truncate">{p.invoice_number ?? '—'}</p>
-              </div>
-
-              <div className="col-span-2">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${style.badge}`}>
-                  {label}
-                </span>
-              </div>
-
-              <div className="col-span-1 text-center text-sm text-slate-500">
-                {p.purchase_line_items.length}
-              </div>
-
-              <div className="col-span-2 text-right font-mono font-bold text-slate-900 text-sm whitespace-nowrap">
-                {formatCurrency(p.total_net)}
-              </div>
-
-              <div className="col-span-2 flex justify-end gap-1">
-                <Button
-                  variant="ghost" size="icon"
-                  onClick={() => handleEditOpen(p)}
-                  className="h-7 w-7 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
-                  title="Szerkesztés"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </Button>
-                <Button
-                  variant="ghost" size="icon"
-                  onClick={() => handleDelete(p.id)}
-                  disabled={isDeleting}
-                  className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                  title="Törlés"
-                >
-                  {isDeleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                </Button>
+              {/* Desktop grid layout */}
+              <div className="hidden sm:grid grid-cols-12 gap-2 px-4 py-3 items-center">
+                <div className="col-span-2 text-sm font-medium text-slate-600 tabular-nums">
+                  {dateStr}
+                </div>
+                <div className="col-span-3">
+                  <p className="font-semibold text-slate-900 text-sm truncate">{p.supplier_name}</p>
+                  <p className="text-[11px] text-slate-400 truncate">{p.invoice_number ?? '—'}</p>
+                </div>
+                <div className="col-span-2">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${style.badge}`}>{label}</span>
+                </div>
+                <div className="col-span-1 text-center text-sm text-slate-500">
+                  {p.purchase_line_items.length}
+                </div>
+                <div className="col-span-2 text-right font-mono font-bold text-slate-900 text-sm whitespace-nowrap">
+                  {formatCurrency(p.total_net)}
+                </div>
+                <div className="col-span-2 flex justify-end gap-1">{actionButtons}</div>
               </div>
             </div>
           )

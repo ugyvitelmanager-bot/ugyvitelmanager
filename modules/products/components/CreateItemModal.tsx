@@ -114,7 +114,7 @@ export function CreateItemModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Kategória */}
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Kategória</Label>
@@ -156,7 +156,7 @@ export function CreateItemModal({
           ) : (
             <div className="space-y-3 pt-4 border-t">
               <Label className="text-sm font-semibold text-slate-700">Milyen típusú tétel ez?</Label>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button
                   type="button"
                   onClick={() => setProductType('recipe_product')}

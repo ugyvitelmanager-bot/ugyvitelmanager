@@ -37,24 +37,8 @@ export default async function ProductsPage({ searchParams }: PageProps) {
   const areaFilter = params.area || ''
   const showArchived = params.archived === 'true'
 
-  // Kategóriák lekérése a szűrőhöz
-  const { data: categoriesRaw } = await supabase
-    .from('categories')
-    .select('id, name, business_area')
-    .order('name')
-  
-  const categories = deduplicateByName((categoriesRaw as any[]) || [])
-
-  // Mértékegységek + ÁFA kulcsok lekérése
-  const [{ data: unitsRaw }, { data: vatRatesRaw }] = await Promise.all([
-    supabase.from('units').select('id, symbol').order('symbol'),
-    supabase.from('vat_rates').select('id, rate_percent').eq('is_active', true).order('rate_percent'),
-  ])
-  const allUnits = (unitsRaw as any[]) || []
-  const vatRates = (vatRatesRaw as any[]) || []
-
-  // Termékek lekérése — csak ingredient típus
-  let query = supabase
+  // Termékek lekérése — szűrőket előre felépítjük, majd minden lekérés párhuzamosan fut
+  let productsQuery = supabase
     .from('products')
     .select(`
       *,
@@ -64,15 +48,25 @@ export default async function ProductsPage({ searchParams }: PageProps) {
     .eq('product_type', 'ingredient')
     .order('name', { ascending: true })
 
-  if (queryStr) query = query.ilike('name', `%${queryStr}%`)
-  if (categoryFilter) query = query.eq('category_id', categoryFilter)
-  
-  // Archivált szűrés
-  if (!showArchived) {
-    query = query.eq('is_active', true)
-  }
+  if (queryStr) productsQuery = productsQuery.ilike('name', `%${queryStr}%`)
+  if (categoryFilter) productsQuery = productsQuery.eq('category_id', categoryFilter)
+  if (!showArchived) productsQuery = productsQuery.eq('is_active', true)
 
-  const { data: productsRaw, error } = await query
+  const [
+    { data: categoriesRaw },
+    { data: unitsRaw },
+    { data: vatRatesRaw },
+    { data: productsRaw, error },
+  ] = await Promise.all([
+    supabase.from('categories').select('id, name, business_area').order('name'),
+    supabase.from('units').select('id, symbol').order('symbol'),
+    supabase.from('vat_rates').select('id, rate_percent').eq('is_active', true).order('rate_percent'),
+    productsQuery,
+  ])
+
+  const categories = deduplicateByName((categoriesRaw as any[]) || [])
+  const allUnits = (unitsRaw as any[]) || []
+  const vatRates = (vatRatesRaw as any[]) || []
   
   if (error) {
     return (

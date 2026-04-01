@@ -42,16 +42,16 @@ export function PurchaseLineRow({
   }
 
   return (
-    <div className="grid grid-cols-12 gap-2 items-end bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+    <div className="grid grid-cols-2 sm:grid-cols-12 gap-2 items-end bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
       {/* Sor típus jelzés */}
       {showHeaders && (
-        <div className="col-span-12 flex items-center gap-1.5 mb-1">
+        <div className="col-span-2 sm:col-span-12 flex items-center gap-1.5 mb-1">
           <Package className="w-3 h-3 text-slate-400" />
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Termék sor</span>
         </div>
       )}
       {!showHeaders && (
-        <div className="col-span-12 -mb-1">
+        <div className="col-span-2 sm:col-span-12 -mb-1">
           <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-slate-300">
             <Package className="w-2.5 h-2.5" /> Termék
           </span>
@@ -59,7 +59,7 @@ export function PurchaseLineRow({
       )}
 
       {/* Termék */}
-      <div className="col-span-4 space-y-1">
+      <div className="col-span-2 sm:col-span-4 space-y-1">
         {showHeaders && (
           <div className="flex items-center justify-between mb-1">
             <Label className="text-[10px] uppercase font-bold text-slate-400">Termék</Label>
@@ -94,7 +94,7 @@ export function PurchaseLineRow({
       </div>
 
       {/* Mennyiség */}
-      <div className="col-span-2 space-y-1">
+      <div className="col-span-1 sm:col-span-2 space-y-1">
         {showHeaders && <Label className="text-[10px] uppercase font-bold text-slate-400">Mennyiség</Label>}
         <Input
           type="number"
@@ -107,7 +107,7 @@ export function PurchaseLineRow({
       </div>
 
       {/* Egység */}
-      <div className="col-span-2 space-y-1">
+      <div className="col-span-1 sm:col-span-2 space-y-1">
         {showHeaders && <Label className="text-[10px] uppercase font-bold text-slate-400">Egység</Label>}
         <Select
           value={item.unitId}
@@ -126,7 +126,7 @@ export function PurchaseLineRow({
       </div>
 
       {/* Nettó Egységár */}
-      <div className="col-span-3 space-y-1">
+      <div className="col-span-1 sm:col-span-3 space-y-1">
         {showHeaders && <Label className="text-[10px] uppercase font-bold text-slate-400">Nettó Egységár</Label>}
         <div className="relative">
           <Input
@@ -142,7 +142,7 @@ export function PurchaseLineRow({
       </div>
 
       {/* Törlés */}
-      <div className="col-span-1 flex justify-center">
+      <div className="col-span-1 flex justify-end sm:justify-center">
         <Button
           variant="ghost"
           size="icon"
