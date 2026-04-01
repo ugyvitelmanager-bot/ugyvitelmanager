@@ -40,6 +40,8 @@ export default async function RecipeDetailPage({ params }: PageProps) {
   const { data: ingredientsRaw } = await supabase
     .from('products')
     .select('id, name, purchase_price_net, unit_id')
+    .eq('product_type', 'ingredient')
+    .eq('is_active', true)
     .order('name')
   const availableIngredients = (ingredientsRaw as any[]) || []
 

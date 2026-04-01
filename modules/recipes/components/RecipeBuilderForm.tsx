@@ -71,13 +71,22 @@ export function RecipeBuilderForm({
     let displaySymbol = itemUnit || ingrUnit
 
     // Automatikus konverziós logika (Beszerzés vs. Recept)
-    // Ha mi kg-ban vesszük (ingredient.unit), de az űrlap 'gr'-ben tette be
+    // Ár kg-ban tárolt, recept gr-ban
     if (ingrUnit === 'kg' && itemUnit === 'gr') {
       costTotal = priceGrossPerUnit * (qty / 1000)
-    } 
+    }
+    // Ár l-ben tárolt, recept ml-ben
     else if (ingrUnit === 'l' && itemUnit === 'ml') {
       costTotal = priceGrossPerUnit * (qty / 1000)
-    } 
+    }
+    // Ár gr-ban tárolt, recept kg-ban
+    else if (ingrUnit === 'gr' && itemUnit === 'kg') {
+      costTotal = priceGrossPerUnit * (qty * 1000)
+    }
+    // Ár ml-ben tárolt, recept l-ben
+    else if (ingrUnit === 'ml' && itemUnit === 'l') {
+      costTotal = priceGrossPerUnit * (qty * 1000)
+    }
     // Minden más esetben, vagy ha egyezik a kettő
     else {
       costTotal = priceGrossPerUnit * qty
