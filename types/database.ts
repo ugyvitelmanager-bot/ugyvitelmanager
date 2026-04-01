@@ -335,11 +335,12 @@ export interface Purchase {
 export interface PurchaseLineItem {
   id: string
   purchase_id: string
-  product_id: string
-  quantity: number           // NUMERIC(10,4)
-  unit_id: string
+  product_id: string | null  // NULL cost soroknál
+  quantity: number           // NUMERIC(10,4); cost soroknál mindig 1
+  unit_id: string | null     // NULL cost soroknál
   unit_price_net: number     // INTEGER — fillér
   line_total_net: number     // BIGINT — fillér
+  description: string | null // cost soroknál kitöltött, termék soroknál NULL
   created_at: string | null
   // Joins
   product?: Product
@@ -420,11 +421,14 @@ export interface DailyClosingExpense {
 }
 
 // RPC args típus — a record_purchase_core p_items JSONB payload-hoz
+// product_id === null → cost sor (nincs készletfrissítés)
+// product_id !== null → termék sor (készlet + ár frissítés)
 export interface PurchaseCoreItemInput {
-  product_id: string
-  quantity: number
-  unit_id: string
+  product_id: string | null
+  quantity: number           // cost soroknál mindig 1
+  unit_id: string | null     // cost soroknál NULL
   unit_price_net: number     // INTEGER fillér — a TS oldal konvertálja
+  description?: string       // cost soroknál kötelező
 }
 
 // --- Supabase Wrapper Type ---
