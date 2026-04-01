@@ -125,6 +125,10 @@ export function RecipeBuilderForm({
     setItems(items.map(i => i._tempId === tempId ? { ...i, quantity: value } : i))
   }
 
+  const handleUpdateUnit = (tempId: string, unitId: string) => {
+    setItems(items.map(i => i._tempId === tempId ? { ...i, unit_id: unitId } : i))
+  }
+
   const handleSave = async () => {
     setIsSaving(true)
     try {
@@ -230,11 +234,11 @@ export function RecipeBuilderForm({
                 <div key={item._tempId} className="flex flex-col sm:flex-row gap-4 items-center bg-white p-3 rounded-lg border shadow-sm group">
                   <div className="flex-1 w-full">
                     <p className="font-semibold text-slate-800">{ingr?.name}</p>
-                    <p className="text-xs text-slate-400 uppercase tracking-widest">{ingr ? formatCurrency(ingr.purchase_price_net) : ''}/{units.find(u => u.id === ingr?.unit_id)?.symbol}</p>
+                    <p className="text-xs text-slate-400 tracking-wide">{ingr ? formatCurrency(ingr.purchase_price_net) : ''}/{units.find(u => u.id === ingr?.unit_id)?.symbol}</p>
                   </div>
                   
                   <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <Input 
+                    <Input
                       type="number"
                       step="0.01"
                       min="0"
@@ -243,7 +247,15 @@ export function RecipeBuilderForm({
                       className="w-24 font-mono text-center border-indigo-200 focus-visible:ring-indigo-500"
                       placeholder="0.00"
                     />
-                    <span className="w-10 text-xs font-bold text-slate-400 uppercase">{symbol}</span>
+                    <select
+                      value={item.unit_id}
+                      onChange={e => handleUpdateUnit(item._tempId, e.target.value)}
+                      className="h-9 rounded border border-slate-200 text-xs text-slate-600 bg-white px-1 focus:ring-indigo-500 focus:outline-none"
+                    >
+                      {units.map(u => (
+                        <option key={u.id} value={u.id}>{u.symbol}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="w-32 text-right">

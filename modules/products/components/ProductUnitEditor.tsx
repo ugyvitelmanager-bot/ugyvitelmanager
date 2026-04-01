@@ -44,7 +44,7 @@ export function ProductUnitEditor({ productId, currentUnitId, units }: ProductUn
         className="h-7 rounded border-slate-200 text-xs text-slate-600 bg-white focus:ring-indigo-500 disabled:opacity-50"
       >
         {units.map(u => (
-          <option key={u.id} value={u.id}>{u.symbol} / {(u.symbol).toUpperCase()}</option>
+          <option key={u.id} value={u.id}>{u.symbol}</option>
         ))}
       </select>
       {isUpdating && <RefreshCw className="w-3 h-3 text-indigo-500 animate-spin" />}
