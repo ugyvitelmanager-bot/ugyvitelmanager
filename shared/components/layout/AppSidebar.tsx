@@ -38,7 +38,9 @@ export function AppSidebar() {
   return (
     <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-gray-900 border-r border-gray-800">
       <div className="flex h-16 shrink-0 items-center px-6">
-        <h1 className="text-xl font-bold text-white tracking-tight uppercase">Biz Manager</h1>
+        <Link href="/" className="text-xl font-bold text-white tracking-tight uppercase hover:text-gray-300 transition-colors">
+          Ügyvitel Manager
+        </Link>
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
         <nav className="mt-2 flex-1 space-y-1 px-3" aria-label="Sidebar">
