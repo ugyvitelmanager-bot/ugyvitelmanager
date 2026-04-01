@@ -15,6 +15,7 @@ import Link from 'next/link'
 import { ProductUnitEditor } from '@/modules/products/components/ProductUnitEditor'
 import { ArchiveProductButton } from '@/modules/products/components/ArchiveProductButton'
 import { CreateItemModal } from '@/modules/products/components/CreateItemModal'
+import { getJoined, deduplicateByName } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,13 +43,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
     .select('id, name, business_area')
     .order('name')
   
-  const seen = new Set<string>()
-  const categories = ((categoriesRaw as any[]) || []).filter(c => {
-    const key = c.name.toLowerCase().trim()
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
+  const categories = deduplicateByName((categoriesRaw as any[]) || [])
 
   // Mértékegységek + ÁFA kulcsok lekérése
   const [{ data: unitsRaw }, { data: vatRatesRaw }] = await Promise.all([
@@ -109,8 +104,6 @@ export default async function ProductsPage({ searchParams }: PageProps) {
   }
 
   const MOHU_FEE = 5000
-  const getJoined = (data: any) => Array.isArray(data) ? data[0] : data
-
   const categoryOptions = categories.map(c => ({ value: c.id, label: c.name }))
   const currentParams: Record<string, string> = {
     ...(queryStr && { q: queryStr }),

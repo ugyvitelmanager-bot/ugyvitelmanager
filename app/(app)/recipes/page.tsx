@@ -15,6 +15,7 @@ import { BookOpen, Utensils, Info, Printer, Search, ChefHat, PlusCircle, Eye, Ey
 import Link from 'next/link'
 import { CreateItemModal } from '@/modules/products/components/CreateItemModal'
 import { ArchiveProductButton } from '@/modules/products/components/ArchiveProductButton'
+import { getJoined, deduplicateByName } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,13 +40,7 @@ export default async function RecipesPage({ searchParams }: PageProps) {
     .from('categories')
     .select('id, name')
     .order('name')
-  const seen = new Set<string>()
-  const categories = ((categoriesRaw as any[]) || []).filter(c => {
-    const key = c.name.toLowerCase().trim()
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
+  const categories = deduplicateByName((categoriesRaw as any[]) || [])
 
   // Receptek
   let query = supabase
@@ -78,8 +73,6 @@ export default async function RecipesPage({ searchParams }: PageProps) {
       </div>
     )
   }
-
-  const getJoined = (data: any) => Array.isArray(data) ? data[0] : data
 
   let recipes = (recipesRaw as any[]) || []
 

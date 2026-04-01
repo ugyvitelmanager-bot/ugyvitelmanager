@@ -14,6 +14,7 @@ import Link from 'next/link'
 import { CreateItemModal } from '@/modules/products/components/CreateItemModal'
 import { ArchiveProductButton } from '@/modules/products/components/ArchiveProductButton'
 import { Button } from '@/components/ui/button'
+import { getJoined, deduplicateByName } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,13 +36,7 @@ export default async function EtlapPage({ searchParams }: PageProps) {
     .select('id, name, business_area')
     .order('name')
   // Duplikátumok szűrése
-  const seen = new Set<string>()
-  const categories = ((categoriesRaw as any[]) || []).filter(c => {
-    const key = c.name.toLowerCase().trim()
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
+  const categories = deduplicateByName((categoriesRaw as any[]) || [])
 
   // Csak eladható termékek (recipe_product + stock_product), de nem alapanyagok
   let query = supabase
@@ -76,7 +71,6 @@ export default async function EtlapPage({ searchParams }: PageProps) {
   const vatRates = (vatRatesRaw as any[]) || []
 
   // Üzletág szűrés
-  const getJoined = (data: any) => (Array.isArray(data) ? data[0] : data)
   if (areaFilter) {
     products = products.filter(p => getJoined(p.categories)?.business_area === areaFilter)
   }
@@ -164,7 +158,7 @@ export default async function EtlapPage({ searchParams }: PageProps) {
                   <TableRow key={item.id} className={`hover:bg-gray-50/50 transition-colors ${!isActive ? 'bg-slate-50 opacity-60' : ''}`}>
                     <TableCell className="font-medium">
                       <div className={!isActive ? 'line-through text-slate-400' : ''}>{item.name}</div>
-                      <div className="text-[10px] text-muted-foreground uppercase">{unit?.symbol}</div>
+                      <div className="text-[10px] text-muted-foreground">{unit?.symbol}</div>
                       {!isActive && <div className="text-[9px] font-bold text-orange-600 uppercase mt-0.5">Archivált</div>}
                     </TableCell>
                     <TableCell>
