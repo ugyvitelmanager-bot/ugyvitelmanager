@@ -10,10 +10,11 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { FilterSelect } from '@/components/ui/filter-select'
-import { Package, Search, RotateCcw, Info, Eye, EyeOff } from 'lucide-react'
+import { Package, Search, RotateCcw, Info, Eye, EyeOff, PlusCircle } from 'lucide-react'
 import Link from 'next/link'
 import { ProductUnitEditor } from '@/modules/products/components/ProductUnitEditor'
 import { ArchiveProductButton } from '@/modules/products/components/ArchiveProductButton'
+import { CreateItemModal } from '@/modules/products/components/CreateItemModal'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,11 +50,15 @@ export default async function ProductsPage({ searchParams }: PageProps) {
     return true
   })
 
-  // Mértékegységek lekérése a szerkesztőhöz
-  const { data: unitsRaw } = await supabase.from('units').select('id, symbol').order('symbol')
+  // Mértékegységek + ÁFA kulcsok lekérése
+  const [{ data: unitsRaw }, { data: vatRatesRaw }] = await Promise.all([
+    supabase.from('units').select('id, symbol').order('symbol'),
+    supabase.from('vat_rates').select('id, rate_percent').eq('is_active', true).order('rate_percent'),
+  ])
   const allUnits = (unitsRaw as any[]) || []
+  const vatRates = (vatRatesRaw as any[]) || []
 
-  // Termékek lekérése
+  // Termékek lekérése — csak ingredient típus
   let query = supabase
     .from('products')
     .select(`
@@ -61,6 +66,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
       categories (id, name, business_area),
       units (id, symbol)
     `)
+    .eq('product_type', 'ingredient')
     .order('name', { ascending: true })
 
   if (queryStr) query = query.ilike('name', `%${queryStr}%`)
@@ -120,14 +126,14 @@ export default async function ProductsPage({ searchParams }: PageProps) {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 flex items-center gap-3">
             <Package className="w-8 h-8 text-primary" />
-            Áruk / Alapanyagok
+            Alapanyagok
           </h1>
           <p className="mt-2 text-gray-500">
-            Összesen {products.length} tétel kezelése a raktárban.
+            {products.length} alapanyag — receptúrákhoz és beszerzésekhez.
           </p>
         </div>
         <div className="flex items-center gap-2">
-           <Link href={showArchived ? '/products' : '/products?archived=true'}>
+          <Link href={showArchived ? '/products' : '/products?archived=true'}>
             <Button variant={showArchived ? 'default' : 'outline'} size="sm" className={showArchived ? 'bg-orange-600 hover:bg-orange-700' : ''}>
               {showArchived ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
               {showArchived ? 'Archiváltak elrejtése' : 'Archiváltak mutatása'}
@@ -139,6 +145,13 @@ export default async function ProductsPage({ searchParams }: PageProps) {
               Frissítés CSV-ből
             </Button>
           </Link>
+          <CreateItemModal
+            categories={categories}
+            vatRates={vatRates}
+            defaultType="ingredient"
+            triggerLabel="Új Alapanyag"
+            triggerIcon={<PlusCircle className="mr-2 h-4 w-4" />}
+          />
         </div>
       </div>
 

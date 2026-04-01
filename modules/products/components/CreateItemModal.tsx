@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PlusCircle, Search, RefreshCw, X, Box, UtensilsCrossed } from 'lucide-react'
+import { PlusCircle, Search, RefreshCw, X, Box, UtensilsCrossed, Wheat } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,7 +24,7 @@ interface VatRate { id: string, rate_percent: string }
 interface CreateItemModalProps {
   categories: Category[]
   vatRates: VatRate[]
-  defaultType?: 'recipe_product' | 'stock_product'
+  defaultType?: 'ingredient' | 'recipe_product' | 'stock_product'
   triggerLabel?: string
   triggerIcon?: React.ReactNode
   triggerClassName?: string
@@ -46,7 +46,7 @@ export function CreateItemModal({
   const [name, setName] = useState('')
   const [categoryId, setCategoryId] = useState(categories[0]?.id || '')
   const [vatRateId, setVatRateId] = useState(vatRates.find(v => parseFloat(v.rate_percent) === 27)?.id || vatRates[0]?.id || '')
-  const [productType, setProductType] = useState<'recipe_product' | 'stock_product'>(defaultType)
+  const [productType, setProductType] = useState<'ingredient' | 'recipe_product' | 'stock_product'>(defaultType)
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -140,53 +140,70 @@ export function CreateItemModal({
             </div>
           </div>
 
-          {/* Típus Választó */}
-          <div className="space-y-3 pt-4 border-t">
-            <Label className="text-sm font-semibold text-slate-700">Milyen típusú tétel ez?</Label>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => setProductType('recipe_product')}
-                className={`relative flex flex-col items-center gap-3 rounded-xl border-2 p-4 text-center transition-all ${
-                  productType === 'recipe_product' 
-                  ? 'border-orange-500 bg-orange-50 text-orange-900 shadow-md ring-1 ring-orange-500' 
-                  : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                <div className={`rounded-full p-2 ${productType === 'recipe_product' ? 'bg-orange-100' : 'bg-slate-100'}`}>
-                  <UtensilsCrossed className="w-6 h-6" />
+          {/* Típus Választó — alapanyagnál rögzített, étlapnál választható */}
+          {defaultType === 'ingredient' ? (
+            <div className="pt-4 border-t">
+              <div className="flex items-center gap-3 rounded-xl border-2 border-green-200 bg-green-50 p-4">
+                <div className="rounded-full p-2 bg-green-100 shrink-0">
+                  <Wheat className="w-6 h-6 text-green-700" />
                 </div>
                 <div>
-                  <h4 className="font-bold">Saját Készítésű</h4>
-                  <p className="text-xs opacity-80 mt-1">Receptúra alapján, alapanyagokból</p>
+                  <h4 className="font-bold text-green-900">Alapanyag</h4>
+                  <p className="text-xs text-green-700 mt-0.5">Receptúrákhoz és beszerzésekhez használt nyersanyag</p>
                 </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setProductType('stock_product')}
-                className={`relative flex flex-col items-center gap-3 rounded-xl border-2 p-4 text-center transition-all ${
-                  productType === 'stock_product' 
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-900 shadow-md ring-1 ring-indigo-500' 
-                  : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                <div className={`rounded-full p-2 ${productType === 'stock_product' ? 'bg-indigo-100' : 'bg-slate-100'}`}>
-                  <Box className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="font-bold">Késztermék (Áru)</h4>
-                  <p className="text-xs opacity-80 mt-1">Viszonteladás, nincs saját készítés</p>
-                </div>
-              </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-3 pt-4 border-t">
+              <Label className="text-sm font-semibold text-slate-700">Milyen típusú tétel ez?</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setProductType('recipe_product')}
+                  className={`relative flex flex-col items-center gap-3 rounded-xl border-2 p-4 text-center transition-all ${
+                    productType === 'recipe_product'
+                    ? 'border-orange-500 bg-orange-50 text-orange-900 shadow-md ring-1 ring-orange-500'
+                    : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className={`rounded-full p-2 ${productType === 'recipe_product' ? 'bg-orange-100' : 'bg-slate-100'}`}>
+                    <UtensilsCrossed className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold">Saját Készítésű</h4>
+                    <p className="text-xs opacity-80 mt-1">Receptúra alapján, alapanyagokból</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setProductType('stock_product')}
+                  className={`relative flex flex-col items-center gap-3 rounded-xl border-2 p-4 text-center transition-all ${
+                    productType === 'stock_product'
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-900 shadow-md ring-1 ring-indigo-500'
+                    : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className={`rounded-full p-2 ${productType === 'stock_product' ? 'bg-indigo-100' : 'bg-slate-100'}`}>
+                    <Box className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold">Késztermék (Áru)</h4>
+                    <p className="text-xs opacity-80 mt-1">Viszonteladás, nincs saját készítés</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="border-t pt-4 sm:justify-between items-center sm:space-x-4">
           <p className="text-sm text-slate-500 hidden sm:block">
-            {productType === 'recipe_product' ? 'Tovább a Receptura szerkesztőhöz →' : 'Tovább az Árazó Kalkulátorhoz →'}
+            {productType === 'ingredient'
+              ? 'Visszatér a raktárlistára →'
+              : productType === 'recipe_product'
+              ? 'Tovább a Receptura szerkesztőhöz →'
+              : 'Tovább az Árazó Kalkulátorhoz →'}
           </p>
           <div className="flex gap-2 w-full sm:w-auto">
             <Button variant="outline" onClick={() => setIsOpen(false)} className="w-full sm:w-auto h-12">

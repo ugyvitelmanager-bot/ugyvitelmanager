@@ -117,7 +117,9 @@ export async function createNewMenuItem(
     // 5. Ha saját készítésű (recept), akkor létrehozzuk az üres Receptet is
     let redirectUrl = `/etlap/${product.id}` // Alapból az árazóra visz (Viszonteladásnál)
 
-    if (productType === 'recipe_product') {
+    if (productType === 'ingredient') {
+      redirectUrl = '/products' // Alapanyagnál visszavisz a raktárlistára
+    } else if (productType === 'recipe_product') {
       const { data: recipe, error: recipeError } = await (supabase.from('recipes') as any)
         .insert({
           product_id: product.id,
