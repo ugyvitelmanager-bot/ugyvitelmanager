@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Edit3, Tag, BarChart } from 'lucide-react'
+import { ArrowLeft, Edit3, Tag, BarChart, UtensilsCrossed } from 'lucide-react'
 import { TermekPricingForm } from '@/modules/products/components/TermekPricingForm'
 import { TermekBasicInfoForm } from '@/modules/products/components/TermekBasicInfoForm'
 import { formatCurrency } from '@/lib/finance'
@@ -39,14 +39,31 @@ export default async function EtlapItemPage({ params }: PageProps) {
   const vatRate = parseFloat(product.vat_rates?.rate_percent || '27')
   const isRecipeProduct = product.product_type === 'recipe_product'
 
+  // 3. Ha recipe_product, lekérjük a hozzá tartozó recept ID-t (navigációhoz)
+  let recipeId: string | null = null
+  if (isRecipeProduct) {
+    const { data: recipeData } = await (supabase.from('recipes') as any)
+      .select('id')
+      .eq('product_id', id)
+      .maybeSingle()
+    recipeId = recipeData?.id ?? null
+  }
+
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-8">
       {/* Fejléc és Vissza gomb */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div className="space-y-4">
-          <Link href="/etlap" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors w-fit">
-            <ArrowLeft className="w-4 h-4" /> Vissza az étlaphoz
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/etlap" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors">
+              <ArrowLeft className="w-4 h-4" /> Vissza az étlaphoz
+            </Link>
+            {recipeId && (
+              <Link href={`/recipes/${recipeId}`} className="text-sm text-orange-600 hover:text-orange-700 flex items-center gap-1.5 transition-colors font-medium">
+                <UtensilsCrossed className="w-4 h-4" /> Receptúra szerkesztése →
+              </Link>
+            )}
+          </div>
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold tracking-tight text-slate-900">{product.name}</h1>

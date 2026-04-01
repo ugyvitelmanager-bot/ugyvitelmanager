@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Edit3, Tag, BarChart } from 'lucide-react'
+import { ArrowLeft, Calculator } from 'lucide-react'
 import { RecipeBuilderForm } from '@/modules/recipes/components/RecipeBuilderForm'
 
 interface PageProps {
@@ -48,9 +48,16 @@ export default async function RecipeDetailPage({ params }: PageProps) {
       {/* Fejléc és Vissza gomb */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div className="space-y-4">
-          <Link href="/recipes" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors w-fit">
-            <ArrowLeft className="w-4 h-4" /> Vissza a Receptekhez
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/recipes" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors">
+              <ArrowLeft className="w-4 h-4" /> Vissza a Receptekhez
+            </Link>
+            {recipe.product_id && (
+              <Link href={`/etlap/${recipe.product_id}`} className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 transition-colors font-medium">
+                <Calculator className="w-4 h-4" /> Árazás szerkesztése →
+              </Link>
+            )}
+          </div>
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold tracking-tight text-slate-900">{recipe.name}</h1>
