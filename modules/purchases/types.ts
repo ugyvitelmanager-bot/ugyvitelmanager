@@ -41,5 +41,11 @@ export interface PurchaseRow {
   invoice_number: string | null
   payment_method: string
   total_net: number
+  net_amount: number | null       // fejléc nettó (fillér) — null régi tételes bejegyzéseknél
+  vat_amount: number | null       // fejléc ÁFA (fillér)
+  gross_amount: number | null     // fejléc bruttó (fillér)
+  performance_date: string | null
+  invoice_date: string | null
+  due_date: string | null
   purchase_line_items: { id: string }[]
 }

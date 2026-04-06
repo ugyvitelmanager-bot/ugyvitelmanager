@@ -3,18 +3,21 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/finance'
-import { ShoppingBag, Pencil, Trash2, RefreshCw, X, Save, AlertTriangle } from 'lucide-react'
+import { ShoppingBag, Pencil, Trash2, RefreshCw, X, Save, AlertTriangle, List } from 'lucide-react'
 import { PAYMENT_METHOD_LABELS } from '@/modules/daily/lib/labels'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { deletePurchase, updatePurchaseHeader } from '../actions'
-import type { PurchaseRow } from '../types'
+import { PurchaseLineItemsDialog } from './PurchaseLineItemsDialog'
+import type { PurchaseRow, ProductOption, UnitOption } from '../types'
 
 interface Props {
   purchases: PurchaseRow[]
   fromDate: string
+  products: ProductOption[]
+  units: UnitOption[]
 }
 
 const PAYMENT_STYLE: Record<string, { border: string; badge: string }> = {
@@ -29,12 +32,48 @@ interface EditState {
   paymentMethod: 'cash' | 'bank_transfer'
 }
 
-export function PurchaseList({ purchases, fromDate }: Props) {
+// Státusz badge a fejléc vs tételek összefüggés alapján
+function StatusBadge({ purchase }: { purchase: PurchaseRow }) {
+  const hasItems = purchase.purchase_line_items.length > 0
+
+  if (!hasItems) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+        Fejléc
+      </span>
+    )
+  }
+
+  // Ha van net_amount (fejléc összeg), ellenőrizzük az eltérést
+  if (purchase.net_amount !== null) {
+    const mismatch = Math.abs(purchase.net_amount - purchase.total_net) > 100 // > 1 Ft eltérés
+    if (mismatch) {
+      return (
+        <span
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 cursor-help"
+          title={`Fejléc: ${formatCurrency(purchase.net_amount / 100)} · Tételek: ${formatCurrency(purchase.total_net / 100)}`}
+        >
+          <AlertTriangle className="w-2.5 h-2.5" />
+          Eltérés
+        </span>
+      )
+    }
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+      Tételes
+    </span>
+  )
+}
+
+export function PurchaseList({ purchases, fromDate, products, units }: Props) {
   const router = useRouter()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editState, setEditState] = useState<EditState | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [lineItemsPurchase, setLineItemsPurchase] = useState<PurchaseRow | null>(null)
 
   const handleEditOpen = (p: PurchaseRow) => {
     setEditingId(p.id)
@@ -95,154 +134,180 @@ export function PurchaseList({ purchases, fromDate }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-      {/* Fejléc — csak desktop */}
-      <div className="hidden sm:grid grid-cols-12 gap-2 px-4 py-2 bg-slate-50 border-b text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-        <div className="col-span-2">Dátum</div>
-        <div className="col-span-3">Beszállító</div>
-        <div className="col-span-2">Fizetés</div>
-        <div className="col-span-1 text-center">Tételek</div>
-        <div className="col-span-2 text-right">Összeg (Nettó)</div>
-        <div className="col-span-2"></div>
-      </div>
+    <>
+      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+        {/* Fejléc — csak desktop */}
+        <div className="hidden sm:grid grid-cols-12 gap-2 px-4 py-2 bg-slate-50 border-b text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          <div className="col-span-2">Dátum</div>
+          <div className="col-span-3">Beszállító</div>
+          <div className="col-span-2">Fizetés</div>
+          <div className="col-span-1 text-center">Állapot</div>
+          <div className="col-span-2 text-right">Összeg (Nettó)</div>
+          <div className="col-span-2"></div>
+        </div>
 
-      {/* Sorok */}
-      <div className="divide-y divide-slate-100">
-        {purchases.map((p) => {
-          const style = PAYMENT_STYLE[p.payment_method] ?? PAYMENT_STYLE.bank_transfer
-          const label = PAYMENT_METHOD_LABELS[p.payment_method] ?? p.payment_method
-          const dateStr = new Date(p.date + 'T12:00:00').toLocaleDateString('hu-HU', {
-            year: 'numeric', month: '2-digit', day: '2-digit'
-          })
-          const isEditing = editingId === p.id
-          const isDeleting = deletingId === p.id
+        {/* Sorok */}
+        <div className="divide-y divide-slate-100">
+          {purchases.map((p) => {
+            const style = PAYMENT_STYLE[p.payment_method] ?? PAYMENT_STYLE.bank_transfer
+            const label = PAYMENT_METHOD_LABELS[p.payment_method] ?? p.payment_method
+            const dateStr = new Date(p.date + 'T12:00:00').toLocaleDateString('hu-HU', {
+              year: 'numeric', month: '2-digit', day: '2-digit'
+            })
+            const isEditing = editingId === p.id
+            const isDeleting = deletingId === p.id
+            // Megjelenített összeg: net_amount ha van (fejléc), egyébként total_net (tételekből)
+            const displayNet = p.net_amount !== null ? p.net_amount / 100 : p.total_net / 100
+            const hasItems = p.purchase_line_items.length > 0
 
-          if (isEditing && editState) {
+            if (isEditing && editState) {
+              return (
+                <div key={p.id} className="px-4 py-4 bg-indigo-50/50 border-l-4 border-l-indigo-400 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-700 uppercase tracking-wider mb-2">
+                    <Pencil className="w-3.5 h-3.5" /> Fejléc szerkesztése
+                    <span className="ml-auto text-[10px] text-slate-400 normal-case font-normal">A tételek és összegek nem módosíthatók. Hibás tételhez törölj és rögzíts újra.</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Dátum</label>
+                      <Input type="date" value={editState.date} onChange={e => setEditState({ ...editState, date: e.target.value })} className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Beszállító</label>
+                      <Input value={editState.supplierName} onChange={e => setEditState({ ...editState, supplierName: e.target.value })} className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Számlaszám</label>
+                      <Input value={editState.invoiceNumber} onChange={e => setEditState({ ...editState, invoiceNumber: e.target.value })} className="h-8 text-sm" placeholder="Opcionális" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Fizetés</label>
+                      <Select
+                        value={editState.paymentMethod}
+                        onValueChange={(v: string | null) => v && setEditState({ ...editState, paymentMethod: v as 'cash' | 'bank_transfer' })}
+                        items={{ cash: 'Készpénz', bank_transfer: 'Átutalás' }}
+                      >
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">Készpénz</SelectItem>
+                          <SelectItem value="bank_transfer">Átutalás</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end pt-1">
+                    <Button variant="outline" size="sm" onClick={() => { setEditingId(null); setEditState(null) }} disabled={isSaving}>
+                      <X className="w-3.5 h-3.5 mr-1" /> Mégse
+                    </Button>
+                    <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleEditSave} disabled={isSaving}>
+                      {isSaving ? <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}
+                      Mentés
+                    </Button>
+                  </div>
+                </div>
+              )
+            }
+
+            const actionButtons = (
+              <>
+                {!hasItems && (
+                  <Button
+                    variant="ghost" size="icon"
+                    onClick={() => setLineItemsPurchase(p)}
+                    className="h-7 w-7 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                    title="Tételek hozzáadása"
+                  >
+                    <List className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost" size="icon"
+                  onClick={() => handleEditOpen(p)}
+                  className="h-7 w-7 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                  title="Fejléc szerkesztése"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost" size="icon"
+                  onClick={() => handleDelete(p.id)}
+                  disabled={isDeleting}
+                  className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                  title="Törlés"
+                >
+                  {isDeleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                </Button>
+              </>
+            )
+
             return (
-              <div key={p.id} className="px-4 py-4 bg-indigo-50/50 border-l-4 border-l-indigo-400 space-y-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-indigo-700 uppercase tracking-wider mb-2">
-                  <Pencil className="w-3.5 h-3.5" /> Fejléc szerkesztése
-                  <span className="ml-auto text-[10px] text-slate-400 normal-case font-normal">A tételek és összegek nem módosíthatók. Hibás tételhez törölj és rögzíts újra.</span>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Dátum</label>
-                    <Input type="date" value={editState.date} onChange={e => setEditState({ ...editState, date: e.target.value })} className="h-8 text-sm" />
+              <div
+                key={p.id}
+                className={`border-l-4 ${style.border} hover:bg-slate-50/50 transition-colors ${isDeleting ? 'opacity-40' : ''}`}
+              >
+                {/* Mobile kártya layout */}
+                <div className="sm:hidden flex items-start justify-between px-4 py-3 gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                      <span className="text-sm font-medium text-slate-600 tabular-nums">{dateStr}</span>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${style.badge}`}>{label}</span>
+                      <StatusBadge purchase={p} />
+                    </div>
+                    <p className="font-semibold text-slate-900 text-sm truncate">{p.supplier_name}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{p.invoice_number ?? '—'}</p>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Beszállító</label>
-                    <Input value={editState.supplierName} onChange={e => setEditState({ ...editState, supplierName: e.target.value })} className="h-8 text-sm" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Számlaszám</label>
-                    <Input value={editState.invoiceNumber} onChange={e => setEditState({ ...editState, invoiceNumber: e.target.value })} className="h-8 text-sm" placeholder="Opcionális" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Fizetés</label>
-                    <Select
-                      value={editState.paymentMethod}
-                      onValueChange={(v: string | null) => v && setEditState({ ...editState, paymentMethod: v as 'cash' | 'bank_transfer' })}
-                      items={{ cash: 'Készpénz', bank_transfer: 'Átutalás' }}
-                    >
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cash">Készpénz</SelectItem>
-                        <SelectItem value="bank_transfer">Átutalás</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="text-right shrink-0">
+                    <p className="font-mono font-bold text-slate-900 text-sm whitespace-nowrap">{formatCurrency(displayNet)}</p>
+                    <div className="flex gap-1 mt-1 justify-end">{actionButtons}</div>
                   </div>
                 </div>
-                <div className="flex gap-2 justify-end pt-1">
-                  <Button variant="outline" size="sm" onClick={() => { setEditingId(null); setEditState(null) }} disabled={isSaving}>
-                    <X className="w-3.5 h-3.5 mr-1" /> Mégse
-                  </Button>
-                  <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleEditSave} disabled={isSaving}>
-                    {isSaving ? <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}
-                    Mentés
-                  </Button>
+
+                {/* Desktop grid layout */}
+                <div className="hidden sm:grid grid-cols-12 gap-2 px-4 py-3 items-center">
+                  <div className="col-span-2 text-sm font-medium text-slate-600 tabular-nums">
+                    {dateStr}
+                  </div>
+                  <div className="col-span-3">
+                    <p className="font-semibold text-slate-900 text-sm truncate">{p.supplier_name}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{p.invoice_number ?? '—'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${style.badge}`}>{label}</span>
+                  </div>
+                  <div className="col-span-1 flex justify-center">
+                    <StatusBadge purchase={p} />
+                  </div>
+                  <div className="col-span-2 text-right font-mono font-bold text-slate-900 text-sm whitespace-nowrap">
+                    {formatCurrency(displayNet)}
+                  </div>
+                  <div className="col-span-2 flex justify-end gap-1">{actionButtons}</div>
                 </div>
               </div>
             )
-          }
+          })}
+        </div>
 
-          const actionButtons = (
-            <>
-              <Button
-                variant="ghost" size="icon"
-                onClick={() => handleEditOpen(p)}
-                className="h-7 w-7 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
-                title="Szerkesztés"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </Button>
-              <Button
-                variant="ghost" size="icon"
-                onClick={() => handleDelete(p.id)}
-                disabled={isDeleting}
-                className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                title="Törlés"
-              >
-                {isDeleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-              </Button>
-            </>
-          )
-
-          return (
-            <div
-              key={p.id}
-              className={`border-l-4 ${style.border} hover:bg-slate-50/50 transition-colors ${isDeleting ? 'opacity-40' : ''}`}
-            >
-              {/* Mobile kártya layout */}
-              <div className="sm:hidden flex items-start justify-between px-4 py-3 gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-sm font-medium text-slate-600 tabular-nums">{dateStr}</span>
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${style.badge}`}>{label}</span>
-                  </div>
-                  <p className="font-semibold text-slate-900 text-sm truncate">{p.supplier_name}</p>
-                  <p className="text-[11px] text-slate-400 truncate">{p.invoice_number ?? '—'}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="font-mono font-bold text-slate-900 text-sm whitespace-nowrap">{formatCurrency(p.total_net)}</p>
-                  <div className="flex gap-1 mt-1 justify-end">{actionButtons}</div>
-                </div>
-              </div>
-
-              {/* Desktop grid layout */}
-              <div className="hidden sm:grid grid-cols-12 gap-2 px-4 py-3 items-center">
-                <div className="col-span-2 text-sm font-medium text-slate-600 tabular-nums">
-                  {dateStr}
-                </div>
-                <div className="col-span-3">
-                  <p className="font-semibold text-slate-900 text-sm truncate">{p.supplier_name}</p>
-                  <p className="text-[11px] text-slate-400 truncate">{p.invoice_number ?? '—'}</p>
-                </div>
-                <div className="col-span-2">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${style.badge}`}>{label}</span>
-                </div>
-                <div className="col-span-1 text-center text-sm text-slate-500">
-                  {p.purchase_line_items.length}
-                </div>
-                <div className="col-span-2 text-right font-mono font-bold text-slate-900 text-sm whitespace-nowrap">
-                  {formatCurrency(p.total_net)}
-                </div>
-                <div className="col-span-2 flex justify-end gap-1">{actionButtons}</div>
-              </div>
-            </div>
-          )
-        })}
+        {/* Időablak jelzés */}
+        <div className="px-4 py-2 bg-slate-50 border-t text-[11px] text-slate-400 flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5">
+            <AlertTriangle className="w-3 h-3 text-amber-500" />
+            Törléskor a készletváltozás nem kerül visszaállításra — csak a bizonylat és a pénztári tétel törlődik.
+          </span>
+          <span>{fromDate} óta · {purchases.length} bizonylat</span>
+        </div>
       </div>
 
-      {/* Időablak jelzés */}
-      <div className="px-4 py-2 bg-slate-50 border-t text-[11px] text-slate-400 flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5">
-          <AlertTriangle className="w-3 h-3 text-amber-500" />
-          Törléskor a készletváltozás nem kerül visszaállításra — csak a bizonylat és a pénztári tétel törlődik.
-        </span>
-        <span>{fromDate} óta · {purchases.length} bizonylat</span>
-      </div>
-    </div>
+      {/* Tételek hozzáadása dialóg */}
+      {lineItemsPurchase && (
+        <PurchaseLineItemsDialog
+          purchase={lineItemsPurchase}
+          products={products}
+          units={units}
+          onClose={() => setLineItemsPurchase(null)}
+        />
+      )}
+    </>
   )
 }

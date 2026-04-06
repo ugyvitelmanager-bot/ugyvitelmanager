@@ -69,6 +69,114 @@ export async function updatePurchaseHeader(
   }
 }
 
+// ---------------------------------------------------------------------------
+// recordPurchaseHeader — gyors rögzítés: csak fejléc, nincs tételsor
+// A cash_transaction itt jön létre (gross_amount, mert azt fizetik ki tényleg).
+// Tételsorok utólag adhatók hozzá: applyPurchaseLineItems
+// ---------------------------------------------------------------------------
+
+export async function recordPurchaseHeader(
+  date: string,
+  supplierName: string,
+  invoiceNumber: string,
+  paymentMethod: 'cash' | 'bank_transfer',
+  netAmountFt: number,
+  vatAmountFt: number,
+  grossAmountFt: number,
+  performanceDate: string | null,
+  invoiceDate: string | null,
+  dueDate: string | null,
+) {
+  try {
+    const supabase = await createClient()
+
+    const { data: purchaseId, error } = await (supabase as any).rpc('record_purchase_header', {
+      p_date: date,
+      p_supplier_name: supplierName,
+      p_invoice_number: invoiceNumber || null,
+      p_payment_method: paymentMethod,
+      p_net_amount: Math.round(netAmountFt * 100),
+      p_vat_amount: Math.round(vatAmountFt * 100),
+      p_gross_amount: Math.round(grossAmountFt * 100),
+      p_performance_date: performanceDate || null,
+      p_invoice_date: invoiceDate || null,
+      p_due_date: dueDate || null,
+    })
+
+    if (error || !purchaseId) throw error || new Error('Hiba a fejléc rögzítésekor.')
+
+    if (paymentMethod === 'cash') {
+      const note = `Beszerzés: ${supplierName}${invoiceNumber ? ' (' + invoiceNumber + ')' : ''}`
+      const { error: cashError } = await (supabase.from('cash_transactions') as any).insert({
+        date,
+        amount: Math.round(grossAmountFt * 100), // bruttó megy ki ténylegesen a pénztárból
+        type: 'expense',
+        source: 'petty_cash',
+        note,
+        purchase_id: purchaseId,
+      })
+      if (cashError) throw cashError
+    }
+
+    revalidatePath('/beszerzes')
+    revalidatePath('/penztar')
+
+    return { success: true, id: purchaseId as string }
+  } catch (error: any) {
+    console.error('Record purchase header error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// applyPurchaseLineItems — idempotens tételsor csere meglévő purchase-hez
+// NEM hoz létre cash_transaction-t. Csak készlet + ár frissítés.
+// ---------------------------------------------------------------------------
+
+export async function applyPurchaseLineItems(
+  purchaseId: string,
+  items: PurchaseItemInput[],
+) {
+  try {
+    const supabase = await createClient()
+
+    const rpcItems = items.map(item => {
+      if (item.kind === 'product') {
+        return {
+          product_id: item.product_id,
+          quantity: item.quantity,
+          unit_id: item.unit_id,
+          unit_price_net: Math.round(item.unit_price_net * 100),
+        }
+      } else {
+        return {
+          product_id: null,
+          description: item.description,
+          quantity: 1,
+          unit_id: null,
+          unit_price_net: Math.round(item.unit_price_net * 100),
+        }
+      }
+    })
+
+    const { error } = await (supabase as any).rpc('apply_purchase_line_items', {
+      p_purchase_id: purchaseId,
+      p_items: rpcItems,
+    })
+
+    if (error) throw error
+
+    revalidatePath('/beszerzes')
+    revalidatePath('/products')
+    revalidatePath('/recipes')
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('Apply purchase line items error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
 type RecordPurchaseCoreArgs = Database['public']['Functions']['record_purchase_core']['Args']
 
 export type PurchaseItemInput =

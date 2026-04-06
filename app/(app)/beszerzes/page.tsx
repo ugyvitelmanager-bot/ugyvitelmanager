@@ -17,7 +17,7 @@ export default async function BeszerzesPage() {
 
   const [purchasesRes, productsRes, unitsRes] = await Promise.all([
     (supabase.from('purchases') as any)
-      .select('id, date, supplier_name, invoice_number, payment_method, total_net, purchase_line_items(id)')
+      .select('id, date, supplier_name, invoice_number, payment_method, total_net, net_amount, vat_amount, gross_amount, performance_date, invoice_date, due_date, purchase_line_items(id)')
       .gte('date', fromDate)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
@@ -70,7 +70,7 @@ export default async function BeszerzesPage() {
       </div>
 
       {/* Lista */}
-      <PurchaseList purchases={purchases} fromDate={fromDateDisplay} />
+      <PurchaseList purchases={purchases} fromDate={fromDateDisplay} products={products} units={units} />
     </div>
   )
 }
