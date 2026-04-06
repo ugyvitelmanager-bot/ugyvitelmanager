@@ -9,10 +9,10 @@ export const dynamic = 'force-dynamic'
 export default async function BeszerzesPage() {
   const supabase = await createClient()
 
-  // Időablak: utóbbi 30 nap
+  // Időablak: utóbbi 90 nap
   const today = new Date()
   const fromDay = new Date(today)
-  fromDay.setDate(today.getDate() - 30)
+  fromDay.setDate(today.getDate() - 90)
   const fromDate = fromDay.toISOString().split('T')[0]
 
   const [purchasesRes, productsRes, unitsRes] = await Promise.all([
