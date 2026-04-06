@@ -54,6 +54,15 @@ export function NewPurchaseDialog({ products: initialProducts, units }: Props) {
   // Gyors mód állapot
   const [simple, setSimple] = useState(EMPTY_SIMPLE)
 
+  // Tételes mód — extra fejléc mezők (ÁFA, bruttó, dátumok)
+  const [itemizedHeader, setItemizedHeader] = useState({
+    vatAmount: '',
+    grossAmount: '',
+    performanceDate: '',
+    invoiceDate: '',
+    dueDate: '',
+  })
+
   // Tételes mód állapot (meglévő reducer)
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false)
   const [activeItemId, setActiveItemId] = useState<string | null>(null)
@@ -65,11 +74,24 @@ export function NewPurchaseDialog({ products: initialProducts, units }: Props) {
     return sum + Number(i.amount)
   }, 0)
 
+  // Tételes mód: bruttó auto-kalkuláció nettó + ÁFA alapján
+  const handleItemizedVatChange = (value: string) => {
+    setItemizedHeader(prev => {
+      const vat = parseFloat(value) || 0
+      return {
+        ...prev,
+        vatAmount: value,
+        grossAmount: (itemizedTotalNet + vat) > 0 ? String(itemizedTotalNet + vat) : prev.grossAmount,
+      }
+    })
+  }
+
   const handleOpen = (open: boolean) => {
     setIsOpen(open)
     if (!open) {
       dispatch({ type: 'RESET' })
       setSimple(EMPTY_SIMPLE)
+      setItemizedHeader({ vatAmount: '', grossAmount: '', performanceDate: '', invoiceDate: '', dueDate: '' })
     }
   }
 
@@ -155,7 +177,16 @@ export function NewPurchaseDialog({ products: initialProducts, units }: Props) {
           return { kind: 'cost' as const, description: i.description, unit_price_net: Number(i.amount) }
         }
       })
-      const res = await recordPurchase(state.date, state.supplier, state.invoiceNumber, state.paymentMethod, items, itemizedTotalNet)
+      const res = await recordPurchase(
+        state.date, state.supplier, state.invoiceNumber, state.paymentMethod, items, itemizedTotalNet,
+        {
+          vatAmountFt:     parseFloat(itemizedHeader.vatAmount) || 0,
+          grossAmountFt:   parseFloat(itemizedHeader.grossAmount) || 0,
+          performanceDate: itemizedHeader.performanceDate || null,
+          invoiceDate:     itemizedHeader.invoiceDate || null,
+          dueDate:         itemizedHeader.dueDate || null,
+        }
+      )
       if (res.success) {
         toast.success('Beszerzés rögzítve! Készlet és árak frissítve.')
         dispatch({ type: 'RESET' })
@@ -316,6 +347,31 @@ export function NewPurchaseDialog({ products: initialProducts, units }: Props) {
                 onInvoiceChange={(v) => dispatch({ type: 'SET_INVOICE', value: v })}
                 onPaymentChange={(v) => dispatch({ type: 'SET_PAYMENT', value: v })}
               />
+
+              {/* Extra dátumok + ÁFA/bruttó — ugyanaz mint gyors módban */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50/60 px-4 py-3 rounded-lg border border-slate-100">
+                <div className="space-y-2">
+                  <Label className="text-[11px] uppercase font-bold text-slate-400">Teljesítés dátuma</Label>
+                  <Input type="date" value={itemizedHeader.performanceDate} onChange={e => setItemizedHeader(p => ({ ...p, performanceDate: e.target.value }))} className="h-8 text-sm" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[11px] uppercase font-bold text-slate-400">Kiállítás dátuma</Label>
+                  <Input type="date" value={itemizedHeader.invoiceDate} onChange={e => setItemizedHeader(p => ({ ...p, invoiceDate: e.target.value }))} className="h-8 text-sm" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[11px] uppercase font-bold text-slate-400">Fizetési határidő</Label>
+                  <Input type="date" value={itemizedHeader.dueDate} onChange={e => setItemizedHeader(p => ({ ...p, dueDate: e.target.value }))} className="h-8 text-sm" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[11px] uppercase font-bold text-slate-400">ÁFA összeg (Ft)</Label>
+                  <Input type="number" min="0" step="1" placeholder="0" value={itemizedHeader.vatAmount} onChange={e => handleItemizedVatChange(e.target.value)} className="h-8 text-sm" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[11px] uppercase font-bold text-slate-400">Bruttó összeg (Ft)</Label>
+                  <Input type="number" min="0" step="1" placeholder="auto: nettó + ÁFA" value={itemizedHeader.grossAmount} onChange={e => setItemizedHeader(p => ({ ...p, grossAmount: e.target.value }))} className="h-8 text-sm" />
+                </div>
+              </div>
+
               <PurchaseLineItems
                 items={state.items}
                 products={localProducts}

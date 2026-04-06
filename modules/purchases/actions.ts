@@ -199,12 +199,19 @@ export async function recordPurchase(
   invoiceNumber: string,
   paymentMethod: 'cash' | 'bank_transfer',
   items: PurchaseItemInput[],
-  totalNet: number // Forintban kapjuk
+  totalNet: number, // Forintban kapjuk
+  // Opcionális extra fejléc mezők — könyvelési adatok
+  extraHeader?: {
+    vatAmountFt: number
+    grossAmountFt: number
+    performanceDate: string | null
+    invoiceDate: string | null
+    dueDate: string | null
+  }
 ) {
   try {
     const supabase = await createClient()
 
-    // RPC-nek küldött items: termék sorok teljes adattal, cost sorok product_id=null + description
     const rpcItems = items.map(item => {
       if (item.kind === 'product') {
         return {
@@ -238,6 +245,19 @@ export async function recordPurchase(
       .rpc('record_purchase_core', rpcArgs)
 
     if (coreError || !purchaseId) throw coreError || new Error('Hiba a vásárlás rögzítésekor.')
+
+    // Extra fejléc mezők mentése (vat, gross, dátumok) ha meg lettek adva
+    if (extraHeader) {
+      await (supabase.from('purchases') as any)
+        .update({
+          vat_amount:       extraHeader.vatAmountFt > 0 ? Math.round(extraHeader.vatAmountFt * 100) : null,
+          gross_amount:     extraHeader.grossAmountFt > 0 ? Math.round(extraHeader.grossAmountFt * 100) : null,
+          performance_date: extraHeader.performanceDate || null,
+          invoice_date:     extraHeader.invoiceDate || null,
+          due_date:         extraHeader.dueDate || null,
+        })
+        .eq('id', purchaseId)
+    }
 
     // Pénztári mozgás generálása (ha KP)
     if (paymentMethod === 'cash') {
