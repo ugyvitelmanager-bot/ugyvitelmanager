@@ -140,9 +140,9 @@ export function PurchaseList({ purchases, fromDate, products, units }: Props) {
         <div className="hidden sm:grid grid-cols-12 gap-2 px-4 py-2 bg-slate-50 border-b text-[10px] font-bold text-slate-400 uppercase tracking-widest">
           <div className="col-span-2">Dátum</div>
           <div className="col-span-3">Beszállító</div>
-          <div className="col-span-2">Fizetés</div>
+          <div className="col-span-1">Fizetés</div>
           <div className="col-span-1 text-center">Állapot</div>
-          <div className="col-span-2 text-right">Összeg (Nettó)</div>
+          <div className="col-span-3 text-right">Összegek</div>
           <div className="col-span-2"></div>
         </div>
 
@@ -260,6 +260,9 @@ export function PurchaseList({ purchases, fromDate, products, units }: Props) {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-mono font-bold text-slate-900 text-sm whitespace-nowrap">{formatCurrency(displayNet)}</p>
+                    {p.gross_amount !== null && (
+                      <p className="text-[10px] text-slate-500 font-mono whitespace-nowrap">Br: {formatCurrency(p.gross_amount / 100)}</p>
+                    )}
                     <div className="flex gap-1 mt-1 justify-end">{actionButtons}</div>
                   </div>
                 </div>
@@ -273,14 +276,20 @@ export function PurchaseList({ purchases, fromDate, products, units }: Props) {
                     <p className="font-semibold text-slate-900 text-sm truncate">{p.supplier_name}</p>
                     <p className="text-[11px] text-slate-400 truncate">{p.invoice_number ?? '—'}</p>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${style.badge}`}>{label}</span>
                   </div>
                   <div className="col-span-1 flex justify-center">
                     <StatusBadge purchase={p} />
                   </div>
-                  <div className="col-span-2 text-right font-mono font-bold text-slate-900 text-sm whitespace-nowrap">
-                    {formatCurrency(displayNet)}
+                  <div className="col-span-3 text-right">
+                    <p className="font-mono font-bold text-slate-900 text-sm whitespace-nowrap">{formatCurrency(displayNet)}</p>
+                    {p.vat_amount !== null && (
+                      <p className="text-[10px] text-slate-400 font-mono whitespace-nowrap">ÁFA: {formatCurrency(p.vat_amount / 100)}</p>
+                    )}
+                    {p.gross_amount !== null && (
+                      <p className="text-[10px] text-slate-500 font-mono font-semibold whitespace-nowrap">Bruttó: {formatCurrency(p.gross_amount / 100)}</p>
+                    )}
                   </div>
                   <div className="col-span-2 flex justify-end gap-1">{actionButtons}</div>
                 </div>
