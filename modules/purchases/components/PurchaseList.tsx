@@ -51,7 +51,7 @@ function StatusBadge({ purchase }: { purchase: PurchaseRow }) {
       return (
         <span
           className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 cursor-help"
-          title={`Fejléc: ${formatCurrency(purchase.net_amount / 100)} · Tételek: ${formatCurrency(purchase.total_net / 100)}`}
+          title={`Fejléc: ${formatCurrency(purchase.net_amount)} · Tételek: ${formatCurrency(purchase.total_net)}`}
         >
           <AlertTriangle className="w-2.5 h-2.5" />
           Eltérés
@@ -157,7 +157,8 @@ export function PurchaseList({ purchases, fromDate, products, units }: Props) {
             const isEditing = editingId === p.id
             const isDeleting = deletingId === p.id
             // Megjelenített összeg: net_amount ha van (fejléc), egyébként total_net (tételekből)
-            const displayNet = p.net_amount !== null ? p.net_amount / 100 : p.total_net / 100
+            // Mindkettő fillérben van — formatCurrency fillért vár, nem osztunk előre
+            const displayNet = p.net_amount !== null ? p.net_amount : p.total_net
             const hasItems = p.purchase_line_items.length > 0
 
             if (isEditing && editState) {
@@ -261,7 +262,7 @@ export function PurchaseList({ purchases, fromDate, products, units }: Props) {
                   <div className="text-right shrink-0">
                     <p className="font-mono font-bold text-slate-900 text-sm whitespace-nowrap">{formatCurrency(displayNet)}</p>
                     {p.gross_amount !== null && (
-                      <p className="text-[10px] text-slate-500 font-mono whitespace-nowrap">Br: {formatCurrency(p.gross_amount / 100)}</p>
+                      <p className="text-[10px] text-slate-500 font-mono whitespace-nowrap">Br: {formatCurrency(p.gross_amount)}</p>
                     )}
                     <div className="flex gap-1 mt-1 justify-end">{actionButtons}</div>
                   </div>
@@ -285,10 +286,10 @@ export function PurchaseList({ purchases, fromDate, products, units }: Props) {
                   <div className="col-span-3 text-right">
                     <p className="font-mono font-bold text-slate-900 text-sm whitespace-nowrap">{formatCurrency(displayNet)}</p>
                     {p.vat_amount !== null && (
-                      <p className="text-[10px] text-slate-400 font-mono whitespace-nowrap">ÁFA: {formatCurrency(p.vat_amount / 100)}</p>
+                      <p className="text-[10px] text-slate-400 font-mono whitespace-nowrap">ÁFA: {formatCurrency(p.vat_amount)}</p>
                     )}
                     {p.gross_amount !== null && (
-                      <p className="text-[10px] text-slate-500 font-mono font-semibold whitespace-nowrap">Bruttó: {formatCurrency(p.gross_amount / 100)}</p>
+                      <p className="text-[10px] text-slate-500 font-mono font-semibold whitespace-nowrap">Bruttó: {formatCurrency(p.gross_amount)}</p>
                     )}
                   </div>
                   <div className="col-span-2 flex justify-end gap-1">{actionButtons}</div>

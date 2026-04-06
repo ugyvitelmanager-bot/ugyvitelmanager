@@ -93,7 +93,7 @@ export function PurchaseLineItemsDialog({ purchase, products: initialProducts, u
       if (res.success) {
         if (mismatch) {
           toast.warning(
-            `Tételek mentve, de eltérés van: fejléc nettó ${formatCurrency(headerNet!)} vs tételek ${formatCurrency(totalNet)}`,
+            `Tételek mentve, de eltérés van: fejléc nettó ${formatCurrency(headerNet! * 100)} vs tételek ${formatCurrency(totalNet * 100)}`,
             { duration: 6000 }
           )
         } else {
@@ -130,12 +130,12 @@ export function PurchaseLineItemsDialog({ purchase, products: initialProducts, u
             {headerNet !== null && (
               <div className="flex items-center gap-2 text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
                 <span className="text-slate-500">Fejléc nettó összeg:</span>
-                <span className="font-mono font-bold text-slate-800">{formatCurrency(headerNet)}</span>
+                <span className="font-mono font-bold text-slate-800">{formatCurrency(headerNet! * 100)}</span>
                 {purchase.gross_amount !== null && (
                   <>
                     <span className="text-slate-300">·</span>
                     <span className="text-slate-500">Bruttó:</span>
-                    <span className="font-mono font-bold text-slate-800">{formatCurrency(purchase.gross_amount / 100)}</span>
+                    <span className="font-mono font-bold text-slate-800">{formatCurrency(purchase.gross_amount)}</span>
                   </>
                 )}
               </div>
@@ -162,7 +162,7 @@ export function PurchaseLineItemsDialog({ purchase, products: initialProducts, u
                 <div>
                   <span className="font-bold text-amber-800">Összeg eltérés: </span>
                   <span className="text-amber-700">
-                    Fejléc nettó {formatCurrency(headerNet!)} · Tételek összege {formatCurrency(totalNet)} · Eltérés {formatCurrency(Math.abs(totalNet - headerNet!))}
+                    Fejléc nettó {formatCurrency(headerNet! * 100)} · Tételek összege {formatCurrency(totalNet * 100)} · Eltérés {formatCurrency(Math.abs(totalNet - headerNet!) * 100)}
                   </span>
                 </div>
               </div>
@@ -175,7 +175,7 @@ export function PurchaseLineItemsDialog({ purchase, products: initialProducts, u
                 <>
                   <span className="text-xs text-slate-500 uppercase font-bold mr-2">Tételek összesen (Nettó):</span>
                   <span className={`text-2xl font-black ${mismatch ? 'text-amber-700' : 'text-slate-900'}`}>
-                    {formatCurrency(totalNet)}
+                    {formatCurrency(totalNet * 100)}
                   </span>
                 </>
               )}
