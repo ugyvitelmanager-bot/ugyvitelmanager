@@ -61,9 +61,9 @@ export async function GET(request: NextRequest) {
     .select(`
       date,
       halas_27, halas_18, halas_am,
-      halas_pg_cash, halas_pg_card, halas_terminal_card,
+      halas_pg_cash, halas_pg_card,
       bufe_27, bufe_5, bufe_am,
-      bufe_pg_cash, bufe_pg_card, bufe_terminal_card
+      bufe_pg_cash, bufe_pg_card
     `)
     .gte('date', from)
     .lte('date', to)
@@ -120,23 +120,36 @@ export async function GET(request: NextRequest) {
   })
 
   // ------------------------------------------------------------
-  // 2. lap: Napi fizetési módok
+  // 2. lap: Napi fizetési módok (PG szerinti bontás)
+  // halas_pg_card / bufe_pg_card = PG által rögzített kártyás forgalom
+  // halas_pg_cash / bufe_pg_cash = PG által rögzített készpénz forgalom
   // ------------------------------------------------------------
   const s2 = wb.addWorksheet('Napi fizetési módok')
   s2.columns = [
-    { key: 'date',   header: 'Dátum',               width: 14 },
-    { key: 'bk',     header: 'Bankkártya (terminál)', width: 22, style: { numFmt: NUM_FMT } },
-    { key: 'kp',     header: 'Készpénz',             width: 16, style: { numFmt: NUM_FMT } },
-    { key: 'total',  header: 'Össz bevétel',         width: 16, style: { numFmt: NUM_FMT } },
+    { key: 'date',      header: 'Dátum',          width: 14 },
+    { key: 'halas_bk',  header: 'Halas BK',       width: 14, style: { numFmt: NUM_FMT } },
+    { key: 'bufe_bk',   header: 'Büfé BK',        width: 14, style: { numFmt: NUM_FMT } },
+    { key: 'ossz_bk',   header: 'Össz BK',        width: 14, style: { numFmt: NUM_FMT } },
+    { key: 'halas_kp',  header: 'Halas KP',       width: 14, style: { numFmt: NUM_FMT } },
+    { key: 'bufe_kp',   header: 'Büfé KP',        width: 14, style: { numFmt: NUM_FMT } },
+    { key: 'ossz_kp',   header: 'Össz KP',        width: 14, style: { numFmt: NUM_FMT } },
+    { key: 'total',     header: 'Össz bevétel',   width: 16, style: { numFmt: NUM_FMT } },
   ]
   styleHeaderRow(s2.getRow(1), 'FF2563EB') // blue-600
 
   for (const c of closings) {
-    const bk    = ft(c.halas_terminal_card) + ft(c.bufe_terminal_card)
-    const kp    = ft(c.halas_pg_cash)       + ft(c.bufe_pg_cash)
-    const total = ft(c.halas_27) + ft(c.halas_18) + ft(c.halas_am)
-                + ft(c.bufe_27)  + ft(c.bufe_5)   + ft(c.bufe_am)
-    s2.addRow({ date: c.date, bk, kp, total })
+    const halas_bk = ft(c.halas_pg_card)
+    const bufe_bk  = ft(c.bufe_pg_card)
+    const halas_kp = ft(c.halas_pg_cash)
+    const bufe_kp  = ft(c.bufe_pg_cash)
+    const total    = ft(c.halas_27) + ft(c.halas_18) + ft(c.halas_am)
+                   + ft(c.bufe_27)  + ft(c.bufe_5)   + ft(c.bufe_am)
+    s2.addRow({
+      date: c.date,
+      halas_bk, bufe_bk, ossz_bk: halas_bk + bufe_bk,
+      halas_kp, bufe_kp, ossz_kp: halas_kp + bufe_kp,
+      total,
+    })
   }
   if (closings.length > 0) addTotalsRow(s2, closings.length, 2)
 
