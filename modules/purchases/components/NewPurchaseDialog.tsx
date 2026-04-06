@@ -401,7 +401,7 @@ export function NewPurchaseDialog({ products: initialProducts, units }: Props) {
                   <>
                     <span className="text-xs text-slate-500 uppercase font-bold mr-2">Fizetendő (Bruttó):</span>
                     <span className="text-2xl font-black text-slate-900">
-                      {formatCurrency(parseFloat(simple.grossAmount) || 0)}
+                      {formatCurrency((parseFloat(simple.grossAmount) || 0) * 100)}
                     </span>
                   </>
                 )}
