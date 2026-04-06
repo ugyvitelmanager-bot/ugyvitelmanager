@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { CalendarDays, PlusCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { getDailyClosings } from '@/modules/daily/actions'
 import { DailyReportList } from '@/modules/daily/components/DailyReportList'
+import { ExportButton } from '@/modules/daily/components/ExportButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,25 +52,28 @@ export default async function NapiElszamolasPage({ searchParams }: PageProps) {
         </Link>
       </div>
 
-      {/* Hónap navigáció */}
-      <div className="flex items-center gap-3">
-        <Link
-          href={`/napi-elszamolas?year=${prevMonth.year}&month=${prevMonth.month}`}
-          className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-700 transition-colors"
-          title="Előző hónap"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </Link>
-        <h2 className="text-xl font-bold text-slate-800 min-w-[200px] text-center">
-          {year}. {MONTH_NAMES[month]}
-        </h2>
-        <Link
-          href={`/napi-elszamolas?year=${nextMonth.year}&month=${nextMonth.month}`}
-          className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-700 transition-colors"
-          title="Következő hónap"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </Link>
+      {/* Hónap navigáció + Export */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/napi-elszamolas?year=${prevMonth.year}&month=${prevMonth.month}`}
+            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-700 transition-colors"
+            title="Előző hónap"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </Link>
+          <h2 className="text-xl font-bold text-slate-800 min-w-[200px] text-center">
+            {year}. {MONTH_NAMES[month]}
+          </h2>
+          <Link
+            href={`/napi-elszamolas?year=${nextMonth.year}&month=${nextMonth.month}`}
+            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-700 transition-colors"
+            title="Következő hónap"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </Link>
+        </div>
+        <ExportButton defaultYear={year} defaultMonth={month} />
       </div>
 
       {/* Lista */}
