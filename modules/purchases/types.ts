@@ -1,4 +1,4 @@
-export type PaymentMethod = 'cash' | 'bank_transfer'
+export type PaymentMethod = 'cash' | 'bank_transfer' | 'card'
 
 export interface PurchaseLineItem {
   id: string

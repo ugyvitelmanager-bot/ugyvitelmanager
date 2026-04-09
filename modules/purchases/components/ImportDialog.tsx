@@ -66,7 +66,7 @@ export function ImportDialog() {
   const toggleRow = (i: number) =>
     setRows(prev => prev.map((r, idx) => idx === i ? { ...r, selected: !r.selected } : r))
 
-  const setPayment = (i: number, method: 'cash' | 'bank_transfer') =>
+  const setPayment = (i: number, method: 'cash' | 'bank_transfer' | 'card') =>
     setRows(prev => prev.map((r, idx) => idx === i ? { ...r, paymentMethod: method, isUnknownPayment: false } : r))
 
   const selectedRows = rows.filter(r => r.selected)
@@ -254,12 +254,13 @@ export function ImportDialog() {
                           )}
                           <select
                             value={row.paymentMethod}
-                            onChange={e => setPayment(i, e.target.value as 'cash' | 'bank_transfer')}
+                            onChange={e => setPayment(i, e.target.value as 'cash' | 'bank_transfer' | 'card')}
                             disabled={!row.selected}
                             className="text-xs border border-slate-200 rounded px-1.5 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400"
                           >
                             <option value="bank_transfer">Utalás</option>
                             <option value="cash">Készpénz</option>
+                            <option value="card">Bankkártya</option>
                           </select>
                         </div>
                       </td>

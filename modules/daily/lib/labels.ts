@@ -18,4 +18,5 @@ export const CASH_PAYMENT_METHODS = [
 export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cash:          'Készpénz (KP)',
   bank_transfer: 'Banki Utalás',
+  card:          'PG Bankkártya',
 }

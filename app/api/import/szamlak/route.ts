@@ -10,7 +10,7 @@ export interface ParsedInvoiceRow {
   netAmount: number         // Ft (rounded)
   vatAmount: number         // Ft (rounded)
   grossAmount: number       // Ft (rounded)
-  paymentMethod: 'cash' | 'bank_transfer'
+  paymentMethod: 'cash' | 'bank_transfer' | 'card'
   paymentMethodRaw: string  // original value for warning display
   isUnknownPayment: boolean
 }
@@ -22,11 +22,12 @@ function isoDate(val: any): string {
   return String(val).slice(0, 10)
 }
 
-function mapPayment(raw: string): { method: 'cash' | 'bank_transfer'; isUnknown: boolean } {
+function mapPayment(raw: string): { method: 'cash' | 'bank_transfer' | 'card'; isUnknown: boolean } {
   const s = (raw ?? '').toLowerCase()
   if (s.includes('készpénz') || s === 'kp') return { method: 'cash', isUnknown: false }
   if (s.includes('átutalás') || s.includes('utalás')) return { method: 'bank_transfer', isUnknown: false }
-  // bankkártya, ismeretlen, egyéb → bank_transfer, de jelöljük
+  if (s.includes('bankkártya') || s.includes('kártya') || s.includes('card')) return { method: 'card', isUnknown: false }
+  // ismeretlen, egyéb → bank_transfer, jelöljük
   return { method: 'bank_transfer', isUnknown: true }
 }
 

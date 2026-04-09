@@ -192,7 +192,7 @@ export interface ImportRow {
   netAmount: number       // Ft
   vatAmount: number       // Ft
   grossAmount: number     // Ft
-  paymentMethod: 'cash' | 'bank_transfer'
+  paymentMethod: 'cash' | 'bank_transfer' | 'card'
 }
 
 export async function importPurchaseHeaders(
