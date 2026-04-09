@@ -16,6 +16,7 @@ import { CashTransactionModal } from '@/modules/cash/components/CashTransactionM
 import { CashTransactionTable } from '@/modules/cash/components/CashTransactionTable'
 import { ReconciliationBlock } from '@/modules/cash/components/ReconciliationBlock'
 import { MonthlyBreakdownBlock } from '@/modules/cash/components/MonthlyBreakdownBlock'
+import { RevenueExpenseBlock } from '@/modules/cash/components/RevenueExpenseBlock'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,18 +42,18 @@ export default async function PenztarPage() {
       .from('cash_transactions')
       .select('id, type, amount'),
     (supabase.from('daily_closings') as any)
-      .select('date, halas_pg_cash, bufe_pg_cash, member_loan')
+      .select('date, halas_pg_cash, bufe_pg_cash, member_loan, halas_27, halas_18, halas_am, bufe_27, bufe_5, bufe_am')
       .eq('status', 'final'),
-    // Egyeztetéshez + havi bontáshoz: összes KP vásárlás
+    // Egyeztetéshez + havi bontáshoz + eredménykimutatáshoz: összes vásárlás
     (supabase.from('purchases') as any)
-      .select('date, gross_amount, total_net')
-      .in('payment_method', ['cash']),
+      .select('date, gross_amount, total_net, payment_method'),
   ])
 
   const transactions = (transactionsRaw as any[]) || []
   const allTransactions = (allTransactionsRaw as any[]) || []
   const closings = (closingsRaw as any[]) || []
-  const cashPurchases = (cashPurchasesRaw as any[]) || []
+  const allPurchases = (cashPurchasesRaw as any[]) || []
+  const cashPurchases = allPurchases.filter((p: any) => p.payment_method === 'cash')
 
   // ============================================================
   // Egységes cash egyenleg számítás (minden tranzakcióból)
@@ -117,6 +118,43 @@ export default async function PenztarPage() {
     running += r.pgKp + r.memberLoan - r.kiadás
     return { ...r, balance: running }
   })
+
+  // ============================================================
+  // Eredménykimutatás — havi bevétel/kiadás bontás
+  // ============================================================
+  type RevExpRow = {
+    month: string
+    halasBev: number   // halas_27+18+am fillér
+    bufeBev: number    // bufe_27+5+am fillér
+    kpKiad: number     // purchases cash bruttó fillér
+    bkKiad: number     // purchases card bruttó fillér
+    utKiad: number     // purchases bank_transfer bruttó fillér
+  }
+
+  const revExpMap = new Map<string, RevExpRow>()
+  const getRevExp = (month: string): RevExpRow => {
+    if (!revExpMap.has(month)) revExpMap.set(month, { month, halasBev: 0, bufeBev: 0, kpKiad: 0, bkKiad: 0, utKiad: 0 })
+    return revExpMap.get(month)!
+  }
+
+  for (const d of closings) {
+    const month = (d.date as string).slice(0, 7)
+    const r = getRevExp(month)
+    r.halasBev += (d.halas_27 || 0) + (d.halas_18 || 0) + (d.halas_am || 0)
+    r.bufeBev  += (d.bufe_27  || 0) + (d.bufe_5  || 0) + (d.bufe_am  || 0)
+  }
+
+  for (const p of allPurchases) {
+    if (!p.date) continue
+    const month = (p.date as string).slice(0, 7)
+    const r = getRevExp(month)
+    const amt = p.gross_amount ?? p.total_net ?? 0
+    if (p.payment_method === 'cash')          r.kpKiad += amt
+    else if (p.payment_method === 'card')     r.bkKiad += amt
+    else if (p.payment_method === 'bank_transfer') r.utKiad += amt
+  }
+
+  const revExpRows = Array.from(revExpMap.values()).sort((a, b) => a.month.localeCompare(b.month))
 
   // ============================================================
   // Egyeztetési adatok — purchases tábla mint "igazság"
@@ -243,6 +281,9 @@ export default async function PenztarPage() {
           </div>
         </div>
       </div>
+
+      {/* Bevétel / kiadás eredménykimutatás */}
+      <RevenueExpenseBlock rows={revExpRows} />
 
       {/* Havi bontás */}
       <MonthlyBreakdownBlock rows={monthlyRowsWithBalance} />
