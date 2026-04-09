@@ -303,7 +303,7 @@ export async function recordPurchase(
       p_date: date,
       p_supplier_name: supplierName,
       p_invoice_number: invoiceNumber || null,
-      p_payment_method: paymentMethod,
+      p_payment_method: paymentMethod as any, // 'card' added; database.ts not regenerated
       p_total_net: Math.round(totalNet * 100),
       p_items: rpcItems as any,
     }
