@@ -10,18 +10,24 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import {
-  Wallet, History, UserCheck, AlertTriangle, TrendingUp, TrendingDown,
+  Wallet, History, UserCheck, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2,
 } from 'lucide-react'
 import { CashTransactionModal } from '@/modules/cash/components/CashTransactionModal'
 import { CashTransactionTable } from '@/modules/cash/components/CashTransactionTable'
+import { ReconciliationBlock } from '@/modules/cash/components/ReconciliationBlock'
 
 export const dynamic = 'force-dynamic'
 
 export default async function PenztarPage() {
   const supabase = await createClient()
 
-  // 1+2. Párhuzamos lekérés
-  const [{ data: transactionsRaw }, { data: allTransactionsRaw }, { data: closingsRaw }] = await Promise.all([
+  // Párhuzamos lekérés
+  const [
+    { data: transactionsRaw },
+    { data: allTransactionsRaw },
+    { data: closingsRaw },
+    { data: cashPurchasesRaw },
+  ] = await Promise.all([
     // Megjelenítéshez: utolsó 100
     supabase
       .from('cash_transactions')
@@ -36,11 +42,16 @@ export default async function PenztarPage() {
     (supabase.from('daily_closings') as any)
       .select('date, halas_pg_cash, bufe_pg_cash, member_loan')
       .eq('status', 'final'),
+    // Egyeztetéshez: összes KP vásárlás bruttó összege a purchases táblából
+    (supabase.from('purchases') as any)
+      .select('gross_amount, total_net')
+      .in('payment_method', ['cash']),
   ])
 
   const transactions = (transactionsRaw as any[]) || []
   const allTransactions = (allTransactionsRaw as any[]) || []
   const closings = (closingsRaw as any[]) || []
+  const cashPurchases = (cashPurchasesRaw as any[]) || []
 
   // ============================================================
   // Egységes cash egyenleg számítás (minden tranzakcióból)
@@ -65,6 +76,21 @@ export default async function PenztarPage() {
 
   const cashBalance = txInflow + dailyKpInflow + dailyLoanInflow - txOutflow
   const isDeficit = cashBalance < 0
+
+  // ============================================================
+  // Egyeztetési adatok — purchases tábla mint "igazság"
+  // ============================================================
+  const purchasesKpBrutto = cashPurchases
+    .reduce((sum: number, p: any) => sum + (p.gross_amount ?? p.total_net ?? 0), 0)
+
+  // Bevétel forrásai (daily_closings + manuális loan_in/income)
+  const reconcInflow = dailyKpInflow + dailyLoanInflow + txInflow
+  // Kiadás a purchases szerint (ez az "igaz" szám)
+  const reconcOutflow = purchasesKpBrutto
+  // Kiadás a cash_transactions szerint (esetleg hibás)
+  const ctOutflow = txOutflow
+  // Eltérés: ha pozitív → CT-ben kevesebb kiadás van (nettós hiba), ha negatív → CT-ben több
+  const reconcDiff = ctOutflow - reconcOutflow
 
   // Tagi kölcsön egyenleg (mennyi a cég tartozása a tagoknak)
   const memberLoanBalance =
@@ -176,6 +202,16 @@ export default async function PenztarPage() {
           </div>
         </div>
       </div>
+
+      {/* Egyeztetési ellenőrzés */}
+      <ReconciliationBlock
+        pgKpInflow={dailyKpInflow}
+        memberLoanInflow={dailyLoanInflow}
+        manualInflow={txInflow}
+        purchasesKpBrutto={reconcOutflow}
+        ctOutflow={ctOutflow}
+        reconcDiff={reconcDiff}
+      />
 
       {/* Transaction List */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
