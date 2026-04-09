@@ -15,6 +15,7 @@ import {
 import { CashTransactionModal } from '@/modules/cash/components/CashTransactionModal'
 import { CashTransactionTable } from '@/modules/cash/components/CashTransactionTable'
 import { ReconciliationBlock } from '@/modules/cash/components/ReconciliationBlock'
+import { MonthlyBreakdownBlock } from '@/modules/cash/components/MonthlyBreakdownBlock'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,9 +43,9 @@ export default async function PenztarPage() {
     (supabase.from('daily_closings') as any)
       .select('date, halas_pg_cash, bufe_pg_cash, member_loan')
       .eq('status', 'final'),
-    // Egyeztetéshez: összes KP vásárlás bruttó összege a purchases táblából
+    // Egyeztetéshez + havi bontáshoz: összes KP vásárlás
     (supabase.from('purchases') as any)
-      .select('gross_amount, total_net')
+      .select('date, gross_amount, total_net')
       .in('payment_method', ['cash']),
   ])
 
@@ -76,6 +77,46 @@ export default async function PenztarPage() {
 
   const cashBalance = txInflow + dailyKpInflow + dailyLoanInflow - txOutflow
   const isDeficit = cashBalance < 0
+
+  // ============================================================
+  // Havi bontás — gördülő házipénztár egyenleggel
+  // ============================================================
+  type MonthRow = {
+    month: string // 'YYYY-MM'
+    pgKp: number
+    memberLoan: number
+    kiadás: number
+  }
+
+  const monthMap = new Map<string, MonthRow>()
+
+  const getOrCreate = (month: string): MonthRow => {
+    if (!monthMap.has(month)) monthMap.set(month, { month, pgKp: 0, memberLoan: 0, kiadás: 0 })
+    return monthMap.get(month)!
+  }
+
+  for (const d of closings) {
+    const month = d.date.slice(0, 7)
+    const row = getOrCreate(month)
+    row.pgKp += (d.halas_pg_cash || 0) + (d.bufe_pg_cash || 0)
+    row.memberLoan += d.member_loan || 0
+  }
+
+  for (const p of cashPurchases) {
+    if (!p.date) continue
+    const month = (p.date as string).slice(0, 7)
+    const row = getOrCreate(month)
+    row.kiadás += p.gross_amount ?? p.total_net ?? 0
+  }
+
+  const monthlyRows = Array.from(monthMap.values()).sort((a, b) => a.month.localeCompare(b.month))
+
+  // Gördülő egyenleg
+  let running = 0
+  const monthlyRowsWithBalance = monthlyRows.map(r => {
+    running += r.pgKp + r.memberLoan - r.kiadás
+    return { ...r, balance: running }
+  })
 
   // ============================================================
   // Egyeztetési adatok — purchases tábla mint "igazság"
@@ -202,6 +243,9 @@ export default async function PenztarPage() {
           </div>
         </div>
       </div>
+
+      {/* Havi bontás */}
+      <MonthlyBreakdownBlock rows={monthlyRowsWithBalance} />
 
       {/* Egyeztetési ellenőrzés */}
       <ReconciliationBlock
