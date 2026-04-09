@@ -42,7 +42,14 @@ export function DailyReportList({ closings, purchaseTotalsByDate, year, month }:
     const closing = closingByDate[date]
     const cashPurchasesFt = purchaseTotalsByDate[date] || 0
 
+    // KP kiadás minden napnál beleszámít a havi összesítőbe
+    monthCashPurchases += cashPurchasesFt
+
     if (!closing) {
+      // Ha van vásárlás de nincs zárás: mutassuk a kiadást az egyenlegben
+      if (cashPurchasesFt > 0) {
+        monthNetBalance -= cashPurchasesFt
+      }
       return { date, closing: null, summary: null, cashPurchasesFt }
     }
 
@@ -53,7 +60,6 @@ export function DailyReportList({ closings, purchaseTotalsByDate, year, month }:
     monthTotalBk      += summary.total_bk
     monthNetBalance   += summary.net_balance
     monthMemberLoan   += formData.member_loan
-    monthCashPurchases += cashPurchasesFt
 
     return { date, closing, summary, cashPurchasesFt, formData }
   })
@@ -134,6 +140,8 @@ export function DailyReportList({ closings, purchaseTotalsByDate, year, month }:
                         <span className={isNegative ? 'text-red-600' : 'text-emerald-700'}>
                           {summary.net_balance >= 0 ? '+' : ''}{formatFt(summary.net_balance)}
                         </span>
+                      ) : cashPurchasesFt > 0 ? (
+                        <span className="text-red-600">−{formatFt(cashPurchasesFt)}</span>
                       ) : (
                         <EmptyCell />
                       )}

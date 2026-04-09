@@ -35,7 +35,7 @@ export async function getDailyClosing(date: string): Promise<{
 }> {
   const supabase = await createClient()
 
-  const [closingRes, purchasesRes, prevClosingRes] = await Promise.all([
+  const [closingRes, purchasesRes, allPrevClosingsRes, allPrevPurchasesRes] = await Promise.all([
     (supabase.from('daily_closings') as any)
       .select('*, daily_closing_expenses(*)')
       .eq('date', date)
@@ -44,26 +44,30 @@ export async function getDailyClosing(date: string): Promise<{
       .select('id, date, supplier_name, total_net, payment_method')
       .eq('date', date)
       .in('payment_method', CASH_PAYMENT_METHODS),
+    // Összes korábbi zárás — a lánc kiszámolásához
     (supabase.from('daily_closings') as any)
-      .select('*, daily_closing_expenses(*)')
+      .select('date, daily_closing_expenses(*), halas_pg_cash, bufe_pg_cash, member_loan, petty_cash_movement')
       .lt('date', date)
-      .order('date', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .order('date', { ascending: true }),
+    // Összes korábbi KP beszerzés — dátum szerint csoportosítva
+    (supabase.from('purchases') as any)
+      .select('date, total_net')
+      .lt('date', date)
+      .in('payment_method', CASH_PAYMENT_METHODS),
   ])
 
-  // Előző rögzített nap záróállásának kiszámolása
+  // Korábbi KP beszerzések dátum szerint összesítve (Ft)
+  const prevPurchasesByDate: Record<string, number> = {}
+  for (const p of (allPrevPurchasesRes.data as any[]) || []) {
+    prevPurchasesByDate[p.date] = (prevPurchasesByDate[p.date] || 0) + Math.round((p.total_net || 0) / 100)
+  }
+
+  // Futó egyenleg lánc: minden korábbi zárást sorban végigszámolunk
   let prevCashClosing = 0
-  if (prevClosingRes.data) {
-    const prevDate = prevClosingRes.data.date
-    const prevPurchasesRes = await (supabase.from('purchases') as any)
-      .select('total_net')
-      .eq('date', prevDate)
-      .in('payment_method', CASH_PAYMENT_METHODS)
-    const prevPurchasesFt = ((prevPurchasesRes.data as any[]) || [])
-      .reduce((sum: number, p: any) => sum + Math.round((p.total_net || 0) / 100), 0)
-    const prevFormData = dbToFormData(prevClosingRes.data)
-    const prevSummary = calculateDailySummary(prevFormData, prevPurchasesFt, 0)
+  for (const prevClosing of (allPrevClosingsRes.data as any[]) || []) {
+    const prevFormData = dbToFormData(prevClosing)
+    const prevPurchasesFt = prevPurchasesByDate[prevClosing.date] || 0
+    const prevSummary = calculateDailySummary(prevFormData, prevPurchasesFt, prevCashClosing)
     prevCashClosing = prevSummary.expected_cash_closing
   }
 
