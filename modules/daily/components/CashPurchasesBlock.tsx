@@ -34,7 +34,7 @@ export function CashPurchasesBlock({ purchases, totalFt }: Props) {
                 </span>
               </div>
               <span className="font-mono text-slate-600">
-                −{formatFt(Math.round(p.total_net / 100))}
+                −{formatFt(Math.round((p.gross_amount ?? p.total_net) / 100))}
               </span>
             </div>
           ))}

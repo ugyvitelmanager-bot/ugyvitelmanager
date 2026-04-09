@@ -341,13 +341,14 @@ export async function recordPurchase(
         .eq('id', purchaseId)
     }
 
-    // Pénztári mozgás generálása (ha KP)
+    // Pénztári mozgás generálása (ha KP) — bruttó összeg megy ki ténylegesen
     if (paymentMethod === 'cash') {
       const note = `Beszerzés: ${supplierName}${invoiceNumber ? ' (' + invoiceNumber + ')' : ''}`
+      const grossFt = extraHeader?.grossAmountFt ?? totalNet // ha nincs bruttó megadva, nettóval fallback
 
       const { error: expenseError } = await (supabase.from('cash_transactions') as any).insert({
         date,
-        amount: Math.round(totalNet * 100),
+        amount: Math.round(grossFt * 100),
         type: 'expense',
         source: 'petty_cash',
         note,

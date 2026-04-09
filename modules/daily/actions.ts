@@ -41,7 +41,7 @@ export async function getDailyClosing(date: string): Promise<{
       .eq('date', date)
       .maybeSingle(),
     (supabase.from('purchases') as any)
-      .select('id, date, supplier_name, total_net, payment_method')
+      .select('id, date, supplier_name, total_net, gross_amount, payment_method')
       .eq('date', date)
       .in('payment_method', CASH_PAYMENT_METHODS),
     // Összes korábbi zárás — a lánc kiszámolásához
@@ -51,15 +51,16 @@ export async function getDailyClosing(date: string): Promise<{
       .order('date', { ascending: true }),
     // Összes korábbi KP beszerzés — dátum szerint csoportosítva
     (supabase.from('purchases') as any)
-      .select('date, total_net')
+      .select('date, total_net, gross_amount')
       .lt('date', date)
       .in('payment_method', CASH_PAYMENT_METHODS),
   ])
 
-  // Korábbi KP beszerzések dátum szerint összesítve (Ft)
+  // Korábbi KP beszerzések dátum szerint összesítve (Ft) — bruttó ha van, fallback nettó
   const prevPurchasesByDate: Record<string, number> = {}
   for (const p of (allPrevPurchasesRes.data as any[]) || []) {
-    prevPurchasesByDate[p.date] = (prevPurchasesByDate[p.date] || 0) + Math.round((p.total_net || 0) / 100)
+    const amountFiller = p.gross_amount ?? p.total_net ?? 0
+    prevPurchasesByDate[p.date] = (prevPurchasesByDate[p.date] || 0) + Math.round(amountFiller / 100)
   }
 
   // Futó egyenleg lánc: minden korábbi zárást sorban végigszámolunk
@@ -96,7 +97,7 @@ export async function getDailyClosings(year: number, month: number): Promise<{
       .lte('date', endDate)
       .order('date', { ascending: false }),
     (supabase.from('purchases') as any)
-      .select('date, total_net, payment_method')
+      .select('date, total_net, gross_amount, payment_method')
       .gte('date', startDate)
       .lte('date', endDate)
       .in('payment_method', CASH_PAYMENT_METHODS),
@@ -105,11 +106,12 @@ export async function getDailyClosings(year: number, month: number): Promise<{
   const closings = (closingsRes.data as any[]) || []
   const purchases = (purchasesRes.data as any[]) || []
 
-  // Napi KP beszerzés összegek dátum szerint (Forintban)
+  // Napi KP beszerzés összegek dátum szerint (Forintban) — bruttó ha van, fallback nettó
   const purchaseTotalsByDate: Record<string, number> = {}
   for (const p of purchases) {
+    const amountFiller = p.gross_amount ?? p.total_net ?? 0
     purchaseTotalsByDate[p.date] =
-      (purchaseTotalsByDate[p.date] || 0) + fillerToFt(p.total_net || 0)
+      (purchaseTotalsByDate[p.date] || 0) + fillerToFt(amountFiller)
   }
 
   return { closings, purchaseTotalsByDate }

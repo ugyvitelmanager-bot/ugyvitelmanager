@@ -44,9 +44,12 @@ export function DailyReportForm({
   const [status, setStatus] = useState<DailyClosingStatus>(initialStatus)
   const [isSaving, setIsSaving] = useState(false)
 
-  // KP beszerzések összege Forintban (DB fillér → Ft)
+  // KP beszerzések összege Forintban — bruttó ha van, fallback nettó
   const cashPurchasesTotalFt = useMemo(
-    () => cashPurchases.reduce((sum, p) => sum + Math.round(p.total_net / 100), 0),
+    () => cashPurchases.reduce((sum, p) => {
+      const filler = p.gross_amount ?? p.total_net
+      return sum + Math.round(filler / 100)
+    }, 0),
     [cashPurchases]
   )
 

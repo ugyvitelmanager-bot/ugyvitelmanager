@@ -79,7 +79,8 @@ export interface CashPurchaseRecord {
   id: string
   date: string
   supplier_name: string
-  total_net: number       // fillér a DB-ből
+  total_net: number        // fillér a DB-ből (nettó)
+  gross_amount: number | null  // fillér a DB-ből (bruttó) — null régi rekordoknál
   payment_method: string
 }
 
