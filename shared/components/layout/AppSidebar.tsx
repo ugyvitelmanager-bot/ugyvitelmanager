@@ -16,6 +16,7 @@ import {
   Database,
   Wallet,
   BookCheck,
+  Receipt,
 } from 'lucide-react'
 
 const navigation = [
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Napi Elszámolás', href: '/napi-elszamolas', icon: BookCheck },
   { name: 'Beszerzés & Készlet', href: '/beszerzes', icon: ShoppingCart },
   { name: 'Pénztár / Pénzkezelés', href: '/penztar', icon: Wallet },
+  { name: 'ÁFA Analitika', href: '/afa', icon: Receipt },
   { name: 'Áruk / Alapanyagok', href: '/products', icon: Package },
   { name: 'Receptek', href: '/recipes', icon: BookOpen },
   { name: 'Termékek (Étlap)', href: '/etlap', icon: UtensilsCrossed },
