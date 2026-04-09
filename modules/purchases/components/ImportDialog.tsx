@@ -248,7 +248,9 @@ export function ImportDialog() {
                       <td className="px-2 py-1.5 text-center">
                         <div className="flex items-center gap-1 justify-center">
                           {row.isUnknownPayment && (
-                            <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" title={`Eredeti: ${row.paymentMethodRaw}`} />
+                            <span title={`Eredeti: ${row.paymentMethodRaw}`}>
+                              <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" />
+                            </span>
                           )}
                           <select
                             value={row.paymentMethod}
