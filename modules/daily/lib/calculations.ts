@@ -8,7 +8,8 @@ import type { DailyClosingFormData, DailySummary } from '../types'
 
 export function calculateDailySummary(
   data: DailyClosingFormData,
-  cashPurchasesTotalFt: number
+  cashPurchasesTotalFt: number,
+  openingCashBalance: number = 0
 ): DailySummary {
   // PG összesítők
   const halas_pg_total = data.halas_27 + data.halas_18 + data.halas_am
@@ -44,9 +45,10 @@ export function calculateDailySummary(
   // Egyenleg
   const net_balance = total_pg - total_expenses
 
-  // Várható KP záróállás
+  // Várható KP záróállás (nyitókészlet + mai mozgások)
   const expected_cash_closing =
-    total_pg_cash
+    openingCashBalance
+    + total_pg_cash
     + data.member_loan
     - cashPurchasesTotalFt
     - other_expenses_total
@@ -72,6 +74,7 @@ export function calculateDailySummary(
     cash_purchases_total: cashPurchasesTotalFt,
     total_expenses,
     net_balance,
+    opening_cash_balance: openingCashBalance,
     expected_cash_closing,
   }
 }

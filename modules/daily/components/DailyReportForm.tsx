@@ -27,6 +27,7 @@ interface Props {
   cashPurchases: CashPurchaseRecord[]
   prevDate: string | null
   nextDate: string | null
+  prevCashClosing: number
 }
 
 export function DailyReportForm({
@@ -36,6 +37,7 @@ export function DailyReportForm({
   cashPurchases,
   prevDate,
   nextDate,
+  prevCashClosing,
 }: Props) {
   const router = useRouter()
   const [formData, setFormData] = useState<DailyClosingFormData>(initialData)
@@ -50,8 +52,8 @@ export function DailyReportForm({
 
   // Összesítő — mindig friss, useMemo-val gyorsítva
   const summary = useMemo(
-    () => calculateDailySummary(formData, cashPurchasesTotalFt),
-    [formData, cashPurchasesTotalFt]
+    () => calculateDailySummary(formData, cashPurchasesTotalFt, prevCashClosing),
+    [formData, cashPurchasesTotalFt, prevCashClosing]
   )
 
   const update = (patch: Partial<DailyClosingFormData>) => {
@@ -183,6 +185,7 @@ export function DailyReportForm({
         petty_cash_movement={formData.petty_cash_movement}
         petty_cash_note={formData.petty_cash_note}
         expected_cash_closing={summary.expected_cash_closing}
+        opening_cash_balance={summary.opening_cash_balance}
         onChange={update}
       />
 

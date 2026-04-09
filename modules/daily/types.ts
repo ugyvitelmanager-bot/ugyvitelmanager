@@ -71,6 +71,7 @@ export interface DailySummary {
   total_expenses: number
   // Egyenleg (Forint)
   net_balance: number
+  opening_cash_balance: number
   expected_cash_closing: number
 }
 

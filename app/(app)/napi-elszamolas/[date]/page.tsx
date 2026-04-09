@@ -40,7 +40,7 @@ export default async function NapiElszamolasDatePage({ params }: PageProps) {
   const today = new Date().toISOString().split('T')[0]
   if (date > today) notFound()
 
-  const { closing, cashPurchases } = await getDailyClosing(date)
+  const { closing, cashPurchases, prevCashClosing } = await getDailyClosing(date)
 
   const initialData   = closing ? dbToFormData(closing) : EMPTY_FORM_DATA
   const initialStatus = (closing?.status as DailyClosingStatus) ?? 'draft'
@@ -60,6 +60,7 @@ export default async function NapiElszamolasDatePage({ params }: PageProps) {
         cashPurchases={cashPurchases}
         prevDate={prevDate}
         nextDate={nextDate}
+        prevCashClosing={prevCashClosing}
       />
     </div>
   )

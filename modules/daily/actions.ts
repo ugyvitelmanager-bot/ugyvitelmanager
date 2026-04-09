@@ -8,6 +8,8 @@ import type {
   CashPurchaseRecord,
 } from './types'
 import { CASH_PAYMENT_METHODS } from './lib/labels'
+import { dbToFormData } from './lib/transformers'
+import { calculateDailySummary } from './lib/calculations'
 
 // ============================================================
 // Konverziós segédfüggvény (privát)
@@ -25,14 +27,15 @@ function fillerToFt(filler: number): number {
 // Lekérdezések
 // ============================================================
 
-/** Egyetlen nap betöltése + aznapi KP beszerzések */
+/** Egyetlen nap betöltése + aznapi KP beszerzések + előző záróállás */
 export async function getDailyClosing(date: string): Promise<{
   closing: any | null
   cashPurchases: CashPurchaseRecord[]
+  prevCashClosing: number
 }> {
   const supabase = await createClient()
 
-  const [closingRes, purchasesRes] = await Promise.all([
+  const [closingRes, purchasesRes, prevClosingRes] = await Promise.all([
     (supabase.from('daily_closings') as any)
       .select('*, daily_closing_expenses(*)')
       .eq('date', date)
@@ -41,11 +44,33 @@ export async function getDailyClosing(date: string): Promise<{
       .select('id, date, supplier_name, total_net, payment_method')
       .eq('date', date)
       .in('payment_method', CASH_PAYMENT_METHODS),
+    (supabase.from('daily_closings') as any)
+      .select('*, daily_closing_expenses(*)')
+      .lt('date', date)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
+
+  // Előző rögzített nap záróállásának kiszámolása
+  let prevCashClosing = 0
+  if (prevClosingRes.data) {
+    const prevDate = prevClosingRes.data.date
+    const prevPurchasesRes = await (supabase.from('purchases') as any)
+      .select('total_net')
+      .eq('date', prevDate)
+      .in('payment_method', CASH_PAYMENT_METHODS)
+    const prevPurchasesFt = ((prevPurchasesRes.data as any[]) || [])
+      .reduce((sum: number, p: any) => sum + Math.round((p.total_net || 0) / 100), 0)
+    const prevFormData = dbToFormData(prevClosingRes.data)
+    const prevSummary = calculateDailySummary(prevFormData, prevPurchasesFt, 0)
+    prevCashClosing = prevSummary.expected_cash_closing
+  }
 
   return {
     closing: closingRes.data || null,
     cashPurchases: (purchasesRes.data as CashPurchaseRecord[]) || [],
+    prevCashClosing,
   }
 }
 

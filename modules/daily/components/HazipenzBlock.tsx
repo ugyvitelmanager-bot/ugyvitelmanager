@@ -6,6 +6,7 @@ interface Props {
   petty_cash_movement: number
   petty_cash_note: string
   expected_cash_closing: number
+  opening_cash_balance: number
   onChange: (patch: { petty_cash_movement?: number; petty_cash_note?: string }) => void
 }
 
@@ -13,6 +14,7 @@ export function HazipenzBlock({
   petty_cash_movement,
   petty_cash_note,
   expected_cash_closing,
+  opening_cash_balance,
   onChange,
 }: Props) {
   return (
@@ -20,6 +22,15 @@ export function HazipenzBlock({
       <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">
         🏦 Házipénztár
       </h3>
+
+      {opening_cash_balance !== 0 && (
+        <div className="flex items-center justify-between mb-4 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nyitókészlet (előző zárás)</span>
+          <span className={`font-mono font-bold text-sm ${opening_cash_balance >= 0 ? 'text-slate-700' : 'text-red-600'}`}>
+            {formatFt(opening_cash_balance)}
+          </span>
+        </div>
+      )}
 
       <div className="space-y-2 mb-4">
         <div className="flex items-center justify-between gap-4">
