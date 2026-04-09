@@ -50,7 +50,7 @@ export function calculateDailySummary(
     + data.member_loan
     - cashPurchasesTotalFt
     - other_expenses_total
-    + data.petty_cash_movement
+    - data.petty_cash_movement
 
   return {
     halas_pg_total,

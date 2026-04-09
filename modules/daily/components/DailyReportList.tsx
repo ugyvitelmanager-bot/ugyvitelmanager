@@ -127,7 +127,7 @@ export function DailyReportList({ closings, purchaseTotalsByDate, year, month }:
                       {summary ? formatFt(summary.bufe_pg_total) : <EmptyCell />}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-red-600">
-                      {cashPurchasesFt > 0 ? `−${formatFt(cashPurchasesFt)}` : <EmptyCell />}
+                      {cashPurchasesFt > 0 ? formatFt(cashPurchasesFt) : <EmptyCell />}
                     </td>
                     <td className="px-4 py-3 text-right font-mono font-bold">
                       {summary ? (

@@ -7,7 +7,6 @@ import {
   ShoppingBag, Pencil, Trash2, RefreshCw, X, Save,
   AlertTriangle, List, CheckCircle2, Circle, Search, SlidersHorizontal,
 } from 'lucide-react'
-import { PAYMENT_METHOD_LABELS } from '@/modules/daily/lib/labels'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -20,6 +19,12 @@ interface Props {
   purchases: PurchaseRow[]
   products: ProductOption[]
   units: UnitOption[]
+}
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash:          'Készpénz (KP)',
+  bank_transfer: 'Banki Utalás',
+  card:          'Bankkártya',
 }
 
 const PAYMENT_STYLE: Record<string, { border: string; badge: string }> = {
