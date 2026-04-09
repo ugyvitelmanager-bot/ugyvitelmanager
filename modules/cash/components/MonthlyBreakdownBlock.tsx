@@ -47,7 +47,7 @@ export function MonthlyBreakdownBlock({ rows }: Props) {
         <div className="flex items-center gap-3">
           <BarChart3 className="w-5 h-5 text-slate-400" />
           <div className="text-left">
-            <p className="text-sm font-bold text-slate-700">Havi összesítő</p>
+            <p className="text-sm font-bold text-slate-700">Havi készpénzmozgás</p>
             <p className="text-xs text-slate-400">PG KP bevétel · Tagi kölcsön · Kiadás · Házipénztár egyenleg</p>
           </div>
         </div>
