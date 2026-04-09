@@ -21,31 +21,37 @@ export default async function PenztarPage() {
   const supabase = await createClient()
 
   // 1+2. Párhuzamos lekérés
-  const [{ data: transactionsRaw }, { data: closingsRaw }] = await Promise.all([
+  const [{ data: transactionsRaw }, { data: allTransactionsRaw }, { data: closingsRaw }] = await Promise.all([
+    // Megjelenítéshez: utolsó 100
     supabase
       .from('cash_transactions')
       .select('*')
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(100),
+    // Egyenleg számításhoz: mind (limit nélkül)
+    supabase
+      .from('cash_transactions')
+      .select('id, type, amount'),
     (supabase.from('daily_closings') as any)
       .select('date, halas_pg_cash, bufe_pg_cash, member_loan')
       .eq('status', 'final'),
   ])
 
   const transactions = (transactionsRaw as any[]) || []
+  const allTransactions = (allTransactionsRaw as any[]) || []
   const closings = (closingsRaw as any[]) || []
 
   // ============================================================
-  // Egységes cash egyenleg számítás
+  // Egységes cash egyenleg számítás (minden tranzakcióból)
   // ============================================================
 
   // Forrás 1: cash_transactions (KP kiadások + manuális bevételek)
-  const txInflow = transactions
+  const txInflow = allTransactions
     .filter(t => t.type === 'income' || t.type === 'loan_in')
     .reduce((sum: number, t: any) => sum + t.amount, 0)
 
-  const txOutflow = transactions
+  const txOutflow = allTransactions
     .filter(t => t.type === 'expense' || t.type === 'loan_out' || t.type === 'transfer')
     .reduce((sum: number, t: any) => sum + t.amount, 0)
 
@@ -62,11 +68,11 @@ export default async function PenztarPage() {
 
   // Tagi kölcsön egyenleg (mennyi a cég tartozása a tagoknak)
   const memberLoanBalance =
-    transactions
+    allTransactions
       .filter(t => t.type === 'loan_in')
       .reduce((sum: number, t: any) => sum + t.amount, 0)
     + dailyLoanInflow
-    - transactions
+    - allTransactions
       .filter(t => t.type === 'loan_out')
       .reduce((sum: number, t: any) => sum + t.amount, 0)
 
