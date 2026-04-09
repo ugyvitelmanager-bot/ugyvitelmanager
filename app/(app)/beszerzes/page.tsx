@@ -57,7 +57,7 @@ export default async function BeszerzesPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <ImportDialog />
+          <ImportDialog existingInvoiceNumbers={new Set(purchases.map(p => p.invoice_number).filter(Boolean) as string[])} />
           <NewPurchaseDialog products={products} units={units} />
         </div>
       </div>

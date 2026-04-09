@@ -15,12 +15,16 @@ import { toast } from 'sonner'
 import { importPurchaseHeaders } from '../actions'
 import type { ParsedInvoiceRow } from '@/app/api/import/szamlak/route'
 
-type EditableRow = ParsedInvoiceRow & { selected: boolean }
+type EditableRow = ParsedInvoiceRow & { selected: boolean; isDuplicate: boolean }
 
 const FT = (n: number) =>
   new Intl.NumberFormat('hu-HU', { maximumFractionDigits: 0 }).format(n) + ' Ft'
 
-export function ImportDialog() {
+interface Props {
+  existingInvoiceNumbers: Set<string>
+}
+
+export function ImportDialog({ existingInvoiceNumbers }: Props) {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -51,7 +55,10 @@ export function ImportDialog() {
       const res = await fetch('/api/import/szamlak', { method: 'POST', body: form })
       const json = await res.json()
       if (!res.ok) { toast.error(json.error ?? 'Parse hiba'); return }
-      setRows((json.rows as ParsedInvoiceRow[]).map(r => ({ ...r, selected: true })))
+      setRows((json.rows as ParsedInvoiceRow[]).map(r => {
+        const isDuplicate = !!r.invoiceNumber && existingInvoiceNumbers.has(r.invoiceNumber)
+        return { ...r, selected: !isDuplicate, isDuplicate }
+      }))
       toast.success(`${json.total} számla beolvasva`)
     } catch {
       toast.error('Fájl feldolgozási hiba')
@@ -69,7 +76,8 @@ export function ImportDialog() {
   const setPayment = (i: number, method: 'cash' | 'bank_transfer' | 'card') =>
     setRows(prev => prev.map((r, idx) => idx === i ? { ...r, paymentMethod: method, isUnknownPayment: false } : r))
 
-  const selectedRows = rows.filter(r => r.selected)
+  const selectedRows   = rows.filter(r => r.selected)
+  const duplicateCount = rows.filter(r => r.isDuplicate).length
 
   const handleImport = async () => {
     if (selectedRows.length === 0) { toast.error('Nincs kijelölt sor'); return }
@@ -225,6 +233,8 @@ export function ImportDialog() {
                       className={`border-b last:border-0 ${
                         !row.selected
                           ? 'opacity-40 bg-slate-50'
+                          : row.isDuplicate
+                          ? 'bg-slate-50'
                           : row.isUnknownPayment
                           ? 'bg-amber-50'
                           : 'hover:bg-slate-50'
@@ -238,7 +248,12 @@ export function ImportDialog() {
                           className="w-3.5 h-3.5"
                         />
                       </td>
-                      <td className="px-2 py-1.5 font-mono text-slate-600 whitespace-nowrap">{row.invoiceNumber || '—'}</td>
+                      <td className="px-2 py-1.5 whitespace-nowrap">
+                        <span className="font-mono text-slate-600">{row.invoiceNumber || '—'}</span>
+                        {row.isDuplicate && (
+                          <span className="ml-1.5 px-1 py-0.5 rounded text-[9px] font-bold bg-slate-200 text-slate-500">Már létezik</span>
+                        )}
+                      </td>
                       <td className="px-2 py-1.5 font-medium text-slate-800 max-w-[200px] truncate">{row.supplierName}</td>
                       <td className="px-2 py-1.5 text-center text-slate-500 whitespace-nowrap">{row.performanceDate || '—'}</td>
                       <td className="px-2 py-1.5 text-center text-slate-500 whitespace-nowrap">{row.dueDate || '—'}</td>
@@ -274,6 +289,9 @@ export function ImportDialog() {
             <div className="flex items-center justify-between gap-4 pt-2 border-t shrink-0">
               <div className="text-xs text-slate-500">
                 <span className="font-semibold text-slate-700">{selectedRows.length}</span> / {rows.length} kijelölve
+                {duplicateCount > 0 && (
+                  <span className="ml-2 text-slate-400">· <span className="font-medium text-slate-500">{duplicateCount} már létező</span> (kipipálatlan)</span>
+                )}
                 {selectedRows.length > 0 && (
                   <span className="ml-2 text-slate-400">
                     · Bruttó összesen: <span className="font-mono font-semibold text-slate-700">
