@@ -47,5 +47,6 @@ export interface PurchaseRow {
   performance_date: string | null
   invoice_date: string | null
   due_date: string | null
+  is_settled: boolean
   purchase_line_items: { id: string }[]
 }

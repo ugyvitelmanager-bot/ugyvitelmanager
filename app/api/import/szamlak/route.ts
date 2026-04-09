@@ -58,13 +58,14 @@ export async function POST(request: NextRequest) {
     if (rn === 1) return
 
     const type = String(row.getCell(hdr['Típus'])?.value ?? '').trim()
-    if (type !== 'Számla') return  // Jóváíró számla, egyéb: kihagyás
+    const ACCEPTED_TYPES = ['Számla', 'Elektronikus számla', 'Helyesbítő számla']
+    if (!ACCEPTED_TYPES.includes(type)) return  // Sztornó, összesítő sorok: kihagyás
 
     const supplierName = String(row.getCell(hdr['Kiállító'])?.value ?? '').trim()
     if (!supplierName) return
 
     const grossAmount = Math.round(Number(row.getCell(hdr['Bruttó'])?.value) || 0)
-    if (grossAmount <= 0) return
+    if (grossAmount === 0) return  // Pontosan 0: kihagyás; negatív (helyesbítő) OK
 
     const paymentMethodRaw = String(row.getCell(hdr['Fiz.mód'])?.value ?? '').trim()
     const { method, isUnknown } = mapPayment(paymentMethodRaw)

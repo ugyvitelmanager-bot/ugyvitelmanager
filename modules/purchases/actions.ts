@@ -4,6 +4,20 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Database } from '@/types/database'
 
+export async function togglePurchaseSettled(purchaseId: string, settled: boolean) {
+  try {
+    const supabase = await createClient()
+    const { error } = await (supabase.from('purchases') as any)
+      .update({ is_settled: settled })
+      .eq('id', purchaseId)
+    if (error) throw error
+    revalidatePath('/beszerzes')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
+
 export async function deletePurchase(purchaseId: string) {
   try {
     const supabase = await createClient()
