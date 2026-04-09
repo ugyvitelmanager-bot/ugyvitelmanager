@@ -35,7 +35,7 @@ export async function updatePurchaseHeader(
   date: string,
   supplierName: string,
   invoiceNumber: string,
-  paymentMethod: 'cash' | 'bank_transfer'
+  paymentMethod: 'cash' | 'bank_transfer' | 'card'
 ) {
   try {
     const supabase = await createClient()
@@ -79,7 +79,7 @@ export async function recordPurchaseHeader(
   date: string,
   supplierName: string,
   invoiceNumber: string,
-  paymentMethod: 'cash' | 'bank_transfer',
+  paymentMethod: 'cash' | 'bank_transfer' | 'card',
   netAmountFt: number,
   vatAmountFt: number,
   grossAmountFt: number,
@@ -265,7 +265,7 @@ export async function recordPurchase(
   date: string,
   supplierName: string,
   invoiceNumber: string,
-  paymentMethod: 'cash' | 'bank_transfer',
+  paymentMethod: 'cash' | 'bank_transfer' | 'card',
   items: PurchaseItemInput[],
   totalNet: number, // Forintban kapjuk
   // Opcionális extra fejléc mezők — könyvelési adatok
