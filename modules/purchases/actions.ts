@@ -177,6 +177,74 @@ export async function applyPurchaseLineItems(
   }
 }
 
+// ---------------------------------------------------------------------------
+// importPurchaseHeaders — XLSX importból érkező több fejléc egyszerre
+// Ugyanaz a logika mint recordPurchaseHeader, sorban hívva.
+// Visszaad: { imported, errors[] }
+// ---------------------------------------------------------------------------
+
+export interface ImportRow {
+  invoiceNumber: string
+  supplierName: string
+  performanceDate: string
+  invoiceDate: string
+  dueDate: string
+  netAmount: number       // Ft
+  vatAmount: number       // Ft
+  grossAmount: number     // Ft
+  paymentMethod: 'cash' | 'bank_transfer'
+}
+
+export async function importPurchaseHeaders(
+  rows: ImportRow[]
+): Promise<{ imported: number; errors: string[] }> {
+  const supabase = await createClient()
+  let imported = 0
+  const errors: string[] = []
+
+  for (const row of rows) {
+    try {
+      const date = row.performanceDate || row.invoiceDate || new Date().toISOString().split('T')[0]
+
+      const { data: purchaseId, error } = await (supabase as any).rpc('record_purchase_header', {
+        p_date:             date,
+        p_supplier_name:    row.supplierName,
+        p_invoice_number:   row.invoiceNumber || null,
+        p_payment_method:   row.paymentMethod,
+        p_net_amount:       Math.round(row.netAmount * 100),
+        p_vat_amount:       Math.round(row.vatAmount * 100),
+        p_gross_amount:     Math.round(row.grossAmount * 100),
+        p_performance_date: row.performanceDate || null,
+        p_invoice_date:     row.invoiceDate || null,
+        p_due_date:         row.dueDate || null,
+      })
+
+      if (error || !purchaseId) throw error || new Error('Ismeretlen hiba')
+
+      if (row.paymentMethod === 'cash') {
+        const note = `Beszerzés: ${row.supplierName}${row.invoiceNumber ? ' (' + row.invoiceNumber + ')' : ''}`
+        await (supabase.from('cash_transactions') as any).insert({
+          date,
+          amount: Math.round(row.grossAmount * 100),
+          type: 'expense',
+          source: 'petty_cash',
+          note,
+          purchase_id: purchaseId,
+        })
+      }
+
+      imported++
+    } catch (err: any) {
+      errors.push(`${row.invoiceNumber || row.supplierName}: ${err?.message ?? 'Ismeretlen hiba'}`)
+    }
+  }
+
+  revalidatePath('/beszerzes')
+  revalidatePath('/penztar')
+
+  return { imported, errors }
+}
+
 type RecordPurchaseCoreArgs = Database['public']['Functions']['record_purchase_core']['Args']
 
 export type PurchaseItemInput =

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { Truck } from 'lucide-react'
 import { NewPurchaseDialog } from '@/modules/purchases/components/NewPurchaseDialog'
+import { ImportDialog } from '@/modules/purchases/components/ImportDialog'
 import { PurchaseList } from '@/modules/purchases/components/PurchaseList'
 import type { ProductOption, UnitOption, PurchaseRow } from '@/modules/purchases/types'
 
@@ -66,7 +67,10 @@ export default async function BeszerzesPage() {
             Számlák és bizonylatok rögzítése · Készlet és árak automatikus frissítése
           </p>
         </div>
-        <NewPurchaseDialog products={products} units={units} />
+        <div className="flex gap-2">
+          <ImportDialog />
+          <NewPurchaseDialog products={products} units={units} />
+        </div>
       </div>
 
       {/* Lista */}
