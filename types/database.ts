@@ -1202,6 +1202,8 @@ export type VatRate = Tables<"vat_rates">
 export type Supplier = Tables<"suppliers">
 export type Event = Tables<"events">
 
+export type Profile = Tables<"profiles">
+
 export type DailyClosingInsert = TablesInsert<"daily_closings">
 export type DailyClosingExpenseInsert = TablesInsert<"daily_closing_expenses">
 export type PurchaseInsert = TablesInsert<"purchases">
