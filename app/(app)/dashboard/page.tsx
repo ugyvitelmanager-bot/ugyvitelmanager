@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency } from '@/lib/finance'
+import { computeRunningHpBalance } from '@/modules/daily/lib/calculations'
 import Link from 'next/link'
 import {
   CalendarDays, TrendingUp, Wallet, AlertCircle,
@@ -34,8 +35,7 @@ export default async function DashboardPage() {
     { data: openInvoices },
     { data: recentClosings },
     { data: recentPurchases },
-    { data: allClosingsForBalance },
-    { data: allPurchasesForBalance },
+    { data: latestFinalClosingForBalance },
   ] = await Promise.all([
     // Mai nap zárása
     (supabase.from('daily_closings') as any)
@@ -77,16 +77,13 @@ export default async function DashboardPage() {
       .order('created_at', { ascending: false })
       .limit(8),
 
-    // Összes final zárás a HP egyenleghez
+    // Fast path: legutóbbi final zárás tárolt HP egyenlege (O(1))
     (supabase.from('daily_closings') as any)
-      .select('date, halas_pg_cash, bufe_pg_cash, member_loan, petty_cash_movement, daily_closing_expenses(amount)')
+      .select('expected_cash_closing')
       .eq('status', 'final')
-      .order('date', { ascending: true }),
-
-    // Összes KP vásárlás a HP egyenleghez
-    (supabase.from('purchases') as any)
-      .select('date, gross_amount, total_net')
-      .in('payment_method', ['cash']),
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
   // ── Mai PG bevétel ──────────────────────────────────────────
@@ -112,23 +109,28 @@ export default async function DashboardPage() {
   const overdueCount = openList.filter((p: any) => p.due_date && p.due_date < today).length
 
   // ── Házipénztár gördülő egyenleg ────────────────────────────
-  const allClosings = (allClosingsForBalance as any[]) || []
-  const allKpPurchases = (allPurchasesForBalance as any[]) || []
+  let hpBalance: number
+  const storedBalance = (latestFinalClosingForBalance as any)?.expected_cash_closing
 
-  const kpByDate: Record<string, number> = {}
-  for (const p of allKpPurchases) {
-    kpByDate[p.date] = (kpByDate[p.date] || 0) + Math.round((p.gross_amount ?? p.total_net ?? 0) / 100)
-  }
-
-  let hpBalance = 0
-  for (const d of allClosings) {
-    const kpBev = Math.round(((d.halas_pg_cash || 0) + (d.bufe_pg_cash || 0)) / 100)
-    const loan  = Math.round((d.member_loan || 0) / 100)
-    const kpKiad = kpByDate[d.date] || 0
-    const egyebKiad = ((d.daily_closing_expenses as any[]) || [])
-      .reduce((s: number, e: any) => s + Math.round((e.amount || 0) / 100), 0)
-    const egyebKifizetes = Math.round((d.petty_cash_movement || 0) / 100)
-    hpBalance += kpBev + loan - kpKiad - egyebKiad - egyebKifizetes
+  if (storedBalance != null) {
+    // Fast path: tárolt érték (O(1))
+    hpBalance = Math.round(storedBalance / 100)
+  } else {
+    // Slow fallback: teljes lánc-számítás régi adatokhoz
+    const [{ data: allFinalClosings }, { data: allKpPurchases }] = await Promise.all([
+      (supabase.from('daily_closings') as any)
+        .select('date, halas_pg_cash, bufe_pg_cash, member_loan, petty_cash_movement, daily_closing_expenses(amount)')
+        .eq('status', 'final')
+        .order('date', { ascending: true }),
+      (supabase.from('purchases') as any)
+        .select('date, gross_amount, total_net')
+        .in('payment_method', ['cash']),
+    ])
+    const kpByDate: Record<string, number> = {}
+    for (const p of (allKpPurchases as any[]) || []) {
+      kpByDate[p.date] = (kpByDate[p.date] || 0) + Math.round((p.gross_amount ?? p.total_net ?? 0) / 100)
+    }
+    hpBalance = computeRunningHpBalance((allFinalClosings as any[]) || [], kpByDate)
   }
 
   // ── Utolsó 7 nap sorai ──────────────────────────────────────

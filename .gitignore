@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# business data files — do not commit real invoices or Airtable exports
+Airtable/
+szamlak_csv/
+*.xlsx
+*.csv

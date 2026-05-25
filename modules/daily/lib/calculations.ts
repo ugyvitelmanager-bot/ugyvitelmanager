@@ -79,6 +79,39 @@ export function calculateDailySummary(
   }
 }
 
+// ── Shared HP balance helper ─────────────────────────────────
+
+interface HpClosingRow {
+  date: string
+  halas_pg_cash: number | null
+  bufe_pg_cash: number | null
+  member_loan: number | null
+  petty_cash_movement: number | null
+  daily_closing_expenses: Array<{ amount: number | null }>
+}
+
+/**
+ * Kumulatív házipénztár egyenleg kiszámítása raw DB sorokból.
+ * Bemenetek fillérben (DB formátum), cashPurchasesByDate Ft-ban.
+ * Kimenet: egyenleg Ft-ban.
+ */
+export function computeRunningHpBalance(
+  closings: HpClosingRow[],
+  cashPurchasesByDate: Record<string, number>, // date → Ft
+): number {
+  let balance = 0
+  for (const c of closings) {
+    const pgCash   = Math.round(((c.halas_pg_cash || 0) + (c.bufe_pg_cash || 0)) / 100)
+    const loan     = Math.round((c.member_loan || 0) / 100)
+    const expenses = (c.daily_closing_expenses || []).reduce(
+      (s, e) => s + Math.round((e.amount || 0) / 100), 0,
+    )
+    const petty    = Math.round((c.petty_cash_movement || 0) / 100)
+    balance += pgCash + loan - (cashPurchasesByDate[c.date] || 0) - expenses - petty
+  }
+  return balance
+}
+
 /** Forint összeg formázása — pl. 45 200 Ft */
 export function formatFt(forint: number): string {
   return new Intl.NumberFormat('hu-HU', {

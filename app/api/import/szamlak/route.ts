@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
+import { createClient } from '@/lib/supabase/server'
 
 export interface ParsedInvoiceRow {
   invoiceNumber: string
@@ -32,6 +33,10 @@ function mapPayment(raw: string): { method: 'cash' | 'bank_transfer' | 'card'; i
 }
 
 export async function POST(request: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const form = await request.formData()
   const file = form.get('file') as File | null
   if (!file) return NextResponse.json({ error: 'Nincs fájl csatolva.' }, { status: 400 })

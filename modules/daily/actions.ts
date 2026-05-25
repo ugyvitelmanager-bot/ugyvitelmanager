@@ -8,8 +8,7 @@ import type {
   CashPurchaseRecord,
 } from './types'
 import { CASH_PAYMENT_METHODS } from './lib/labels'
-import { dbToFormData } from './lib/transformers'
-import { calculateDailySummary } from './lib/calculations'
+import { calculateDailySummary, computeRunningHpBalance } from './lib/calculations'
 
 // ============================================================
 // Konverziós segédfüggvény (privát)
@@ -35,7 +34,7 @@ export async function getDailyClosing(date: string): Promise<{
 }> {
   const supabase = await createClient()
 
-  const [closingRes, purchasesRes, allPrevClosingsRes, allPrevPurchasesRes] = await Promise.all([
+  const [closingRes, purchasesRes, latestPrevStoredRes] = await Promise.all([
     (supabase.from('daily_closings') as any)
       .select('*, daily_closing_expenses(*)')
       .eq('date', date)
@@ -44,32 +43,41 @@ export async function getDailyClosing(date: string): Promise<{
       .select('id, date, supplier_name, total_net, gross_amount, payment_method')
       .eq('date', date)
       .in('payment_method', CASH_PAYMENT_METHODS),
-    // Összes korábbi zárás — a lánc kiszámolásához
+    // Fast path: legutóbbi korábbi zárás tárolt egyenlege (O(1))
     (supabase.from('daily_closings') as any)
-      .select('date, daily_closing_expenses(*), halas_pg_cash, bufe_pg_cash, member_loan, petty_cash_movement')
+      .select('expected_cash_closing')
       .lt('date', date)
-      .order('date', { ascending: true }),
-    // Összes korábbi KP beszerzés — dátum szerint csoportosítva
-    (supabase.from('purchases') as any)
-      .select('date, total_net, gross_amount')
-      .lt('date', date)
-      .in('payment_method', CASH_PAYMENT_METHODS),
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
-  // Korábbi KP beszerzések dátum szerint összesítve (Ft) — bruttó ha van, fallback nettó
-  const prevPurchasesByDate: Record<string, number> = {}
-  for (const p of (allPrevPurchasesRes.data as any[]) || []) {
-    const amountFiller = p.gross_amount ?? p.total_net ?? 0
-    prevPurchasesByDate[p.date] = (prevPurchasesByDate[p.date] || 0) + Math.round(amountFiller / 100)
-  }
+  let prevCashClosing: number
 
-  // Futó egyenleg lánc: minden korábbi zárást sorban végigszámolunk
-  let prevCashClosing = 0
-  for (const prevClosing of (allPrevClosingsRes.data as any[]) || []) {
-    const prevFormData = dbToFormData(prevClosing)
-    const prevPurchasesFt = prevPurchasesByDate[prevClosing.date] || 0
-    const prevSummary = calculateDailySummary(prevFormData, prevPurchasesFt, prevCashClosing)
-    prevCashClosing = prevSummary.expected_cash_closing
+  if (latestPrevStoredRes.data?.expected_cash_closing != null) {
+    // Fast path: tárolt érték alapján (O(1))
+    prevCashClosing = Math.round(latestPrevStoredRes.data.expected_cash_closing / 100)
+  } else {
+    // Slow path: teljes lánc-számítás (régi rekordokhoz, amíg nincs tárolt érték)
+    const [allPrevClosingsRes, allPrevPurchasesRes] = await Promise.all([
+      (supabase.from('daily_closings') as any)
+        .select('date, daily_closing_expenses(*), halas_pg_cash, bufe_pg_cash, member_loan, petty_cash_movement')
+        .lt('date', date)
+        .order('date', { ascending: true }),
+      (supabase.from('purchases') as any)
+        .select('date, total_net, gross_amount')
+        .lt('date', date)
+        .in('payment_method', CASH_PAYMENT_METHODS),
+    ])
+    const prevPurchasesByDate: Record<string, number> = {}
+    for (const p of (allPrevPurchasesRes.data as any[]) || []) {
+      const amountFiller = p.gross_amount ?? p.total_net ?? 0
+      prevPurchasesByDate[p.date] = (prevPurchasesByDate[p.date] || 0) + Math.round(amountFiller / 100)
+    }
+    prevCashClosing = computeRunningHpBalance(
+      (allPrevClosingsRes.data as any[]) || [],
+      prevPurchasesByDate,
+    )
   }
 
   return {
@@ -131,6 +139,55 @@ export async function saveDailyClosing(
     const supabase = await createClient()
     const { expenses, ...fields } = formData
 
+    // ── Expected cash closing kiszámítása ────────────────────
+    // 1. Előző nap nyitóállása: tárolt érték ha van (O(1)), különben lánc (O(N))
+    const { data: prevStoredRow } = await (supabase.from('daily_closings') as any)
+      .select('expected_cash_closing')
+      .lt('date', date)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    let openingFt: number
+    if (prevStoredRow?.expected_cash_closing != null) {
+      openingFt = Math.round(prevStoredRow.expected_cash_closing / 100)
+    } else {
+      // Fallback: teljes lánc-számítás (régi rekordokhoz)
+      const [allPrevClosingsRes, allPrevPurchasesRes] = await Promise.all([
+        (supabase.from('daily_closings') as any)
+          .select('date, daily_closing_expenses(*), halas_pg_cash, bufe_pg_cash, member_loan, petty_cash_movement')
+          .lt('date', date)
+          .order('date', { ascending: true }),
+        (supabase.from('purchases') as any)
+          .select('date, total_net, gross_amount')
+          .lt('date', date)
+          .in('payment_method', CASH_PAYMENT_METHODS),
+      ])
+      const prevByDate: Record<string, number> = {}
+      for (const p of (allPrevPurchasesRes.data as any[]) || []) {
+        const amt = p.gross_amount ?? p.total_net ?? 0
+        prevByDate[p.date] = (prevByDate[p.date] || 0) + Math.round(amt / 100)
+      }
+      openingFt = computeRunningHpBalance(
+        (allPrevClosingsRes.data as any[]) || [],
+        prevByDate,
+      )
+    }
+
+    // 2. Mai KP vásárlások összege (bruttó ha van, fallback nettó)
+    const { data: todayPurchasesRes } = await (supabase.from('purchases') as any)
+      .select('gross_amount, total_net')
+      .eq('date', date)
+      .in('payment_method', CASH_PAYMENT_METHODS)
+
+    const cashPurchasesFt = ((todayPurchasesRes as any[]) || []).reduce(
+      (s: number, p: any) => s + Math.round((p.gross_amount ?? p.total_net ?? 0) / 100), 0,
+    )
+
+    // 3. Kiszámítás és konverzió fillérbe (mentéshez)
+    const summary = calculateDailySummary(formData, cashPurchasesFt, openingFt)
+    const expectedCashClosingFiller = Math.round(summary.expected_cash_closing * 100)
+
     // Upsert a fő rekordot (Forint → fillér)
     const { data: closing, error: closingError } = await (supabase.from('daily_closings') as any)
       .upsert(
@@ -152,9 +209,10 @@ export async function saveDailyClosing(
           member_loan_note:    fields.member_loan_note.trim() || null,
           petty_cash_movement: ftToFiller(fields.petty_cash_movement),
           petty_cash_note:     fields.petty_cash_note.trim() || null,
-          notes:               fields.notes.trim() || null,
+          notes:                  fields.notes.trim() || null,
           status,
-          updated_at:          new Date().toISOString(),
+          expected_cash_closing:  expectedCashClosingFiller,
+          updated_at:             new Date().toISOString(),
         },
         { onConflict: 'date' }
       )
