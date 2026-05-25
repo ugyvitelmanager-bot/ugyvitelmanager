@@ -1113,7 +1113,46 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      record_purchase_core: {
+        Args: {
+          p_date: string
+          p_supplier_name: string
+          p_invoice_number: string | null
+          p_payment_method: string
+          p_total_net: number
+          p_items: Json
+        }
+        Returns: string
+      }
+      record_purchase_header: {
+        Args: {
+          p_date: string
+          p_supplier_name: string
+          p_invoice_number: string | null
+          p_payment_method: string
+          p_net_amount: number
+          p_vat_amount: number
+          p_gross_amount: number
+          p_performance_date?: string | null
+          p_invoice_date?: string | null
+          p_due_date?: string | null
+        }
+        Returns: string
+      }
+      apply_purchase_line_items: {
+        Args: {
+          p_purchase_id: string
+          p_items: Json
+        }
+        Returns: undefined
+      }
+      increment_product_stock: {
+        Args: {
+          p_product_id: string
+          p_quantity_delta: number
+        }
+        Returns: number
+      }
     }
     Enums: {
       business_area: "buffet" | "fish" | "event" | "other"
