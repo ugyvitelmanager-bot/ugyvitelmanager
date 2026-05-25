@@ -35,16 +35,16 @@ export async function getDailyClosing(date: string): Promise<{
   const supabase = await createClient()
 
   const [closingRes, purchasesRes, latestPrevStoredRes] = await Promise.all([
-    (supabase.from('daily_closings') as any)
+    supabase.from('daily_closings')
       .select('*, daily_closing_expenses(*)')
       .eq('date', date)
       .maybeSingle(),
-    (supabase.from('purchases') as any)
+    supabase.from('purchases')
       .select('id, date, supplier_name, total_net, gross_amount, payment_method')
       .eq('date', date)
       .in('payment_method', CASH_PAYMENT_METHODS),
     // Fast path: legutóbbi korábbi zárás tárolt egyenlege (O(1))
-    (supabase.from('daily_closings') as any)
+    supabase.from('daily_closings')
       .select('expected_cash_closing')
       .lt('date', date)
       .order('date', { ascending: false })
@@ -60,17 +60,17 @@ export async function getDailyClosing(date: string): Promise<{
   } else {
     // Slow path: teljes lánc-számítás (régi rekordokhoz, amíg nincs tárolt érték)
     const [allPrevClosingsRes, allPrevPurchasesRes] = await Promise.all([
-      (supabase.from('daily_closings') as any)
+      supabase.from('daily_closings')
         .select('date, daily_closing_expenses(*), halas_pg_cash, bufe_pg_cash, member_loan, petty_cash_movement')
         .lt('date', date)
         .order('date', { ascending: true }),
-      (supabase.from('purchases') as any)
+      supabase.from('purchases')
         .select('date, total_net, gross_amount')
         .lt('date', date)
         .in('payment_method', CASH_PAYMENT_METHODS),
     ])
     const prevPurchasesByDate: Record<string, number> = {}
-    for (const p of (allPrevPurchasesRes.data as any[]) || []) {
+    for (const p of allPrevPurchasesRes.data || []) {
       const amountFiller = p.gross_amount ?? p.total_net ?? 0
       prevPurchasesByDate[p.date] = (prevPurchasesByDate[p.date] || 0) + Math.round(amountFiller / 100)
     }
@@ -99,20 +99,20 @@ export async function getDailyClosings(year: number, month: number): Promise<{
   const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
   const [closingsRes, purchasesRes] = await Promise.all([
-    (supabase.from('daily_closings') as any)
+    supabase.from('daily_closings')
       .select('*, daily_closing_expenses(amount)')
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date', { ascending: false }),
-    (supabase.from('purchases') as any)
+    supabase.from('purchases')
       .select('date, total_net, gross_amount, payment_method')
       .gte('date', startDate)
       .lte('date', endDate)
       .in('payment_method', CASH_PAYMENT_METHODS),
   ])
 
-  const closings = (closingsRes.data as any[]) || []
-  const purchases = (purchasesRes.data as any[]) || []
+  const closings = closingsRes.data || []
+  const purchases = purchasesRes.data || []
 
   // Napi KP beszerzés összegek dátum szerint (Forintban) — bruttó ha van, fallback nettó
   const purchaseTotalsByDate: Record<string, number> = {}
@@ -141,7 +141,7 @@ export async function saveDailyClosing(
 
     // ── Expected cash closing kiszámítása ────────────────────
     // 1. Előző nap nyitóállása: tárolt érték ha van (O(1)), különben lánc (O(N))
-    const { data: prevStoredRow } = await (supabase.from('daily_closings') as any)
+    const { data: prevStoredRow } = await supabase.from('daily_closings')
       .select('expected_cash_closing')
       .lt('date', date)
       .order('date', { ascending: false })
@@ -154,17 +154,17 @@ export async function saveDailyClosing(
     } else {
       // Fallback: teljes lánc-számítás (régi rekordokhoz)
       const [allPrevClosingsRes, allPrevPurchasesRes] = await Promise.all([
-        (supabase.from('daily_closings') as any)
+        supabase.from('daily_closings')
           .select('date, daily_closing_expenses(*), halas_pg_cash, bufe_pg_cash, member_loan, petty_cash_movement')
           .lt('date', date)
           .order('date', { ascending: true }),
-        (supabase.from('purchases') as any)
+        supabase.from('purchases')
           .select('date, total_net, gross_amount')
           .lt('date', date)
           .in('payment_method', CASH_PAYMENT_METHODS),
       ])
       const prevByDate: Record<string, number> = {}
-      for (const p of (allPrevPurchasesRes.data as any[]) || []) {
+      for (const p of allPrevPurchasesRes.data || []) {
         const amt = p.gross_amount ?? p.total_net ?? 0
         prevByDate[p.date] = (prevByDate[p.date] || 0) + Math.round(amt / 100)
       }
@@ -175,13 +175,13 @@ export async function saveDailyClosing(
     }
 
     // 2. Mai KP vásárlások összege (bruttó ha van, fallback nettó)
-    const { data: todayPurchasesRes } = await (supabase.from('purchases') as any)
+    const { data: todayPurchasesRes } = await supabase.from('purchases')
       .select('gross_amount, total_net')
       .eq('date', date)
       .in('payment_method', CASH_PAYMENT_METHODS)
 
-    const cashPurchasesFt = ((todayPurchasesRes as any[]) || []).reduce(
-      (s: number, p: any) => s + Math.round((p.gross_amount ?? p.total_net ?? 0) / 100), 0,
+    const cashPurchasesFt = (todayPurchasesRes || []).reduce(
+      (s, p) => s + Math.round((p.gross_amount ?? p.total_net ?? 0) / 100), 0,
     )
 
     // 3. Kiszámítás és konverzió fillérbe (mentéshez)
@@ -189,7 +189,7 @@ export async function saveDailyClosing(
     const expectedCashClosingFiller = Math.round(summary.expected_cash_closing * 100)
 
     // Upsert a fő rekordot (Forint → fillér)
-    const { data: closing, error: closingError } = await (supabase.from('daily_closings') as any)
+    const { data: closing, error: closingError } = await supabase.from('daily_closings')
       .upsert(
         {
           date,
@@ -224,7 +224,7 @@ export async function saveDailyClosing(
     }
 
     // Kiadások csere: töröl mindent, majd újra beszúr
-    await (supabase.from('daily_closing_expenses') as any)
+    await supabase.from('daily_closing_expenses')
       .delete()
       .eq('daily_closing_id', closing.id)
 
@@ -240,7 +240,7 @@ export async function saveDailyClosing(
         sort_order: i,
       }))
 
-      const { error: expError } = await (supabase.from('daily_closing_expenses') as any)
+      const { error: expError } = await supabase.from('daily_closing_expenses')
         .insert(expenseRows)
 
       if (expError) throw expError

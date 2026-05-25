@@ -38,47 +38,47 @@ export default async function DashboardPage() {
     { data: latestFinalClosingForBalance },
   ] = await Promise.all([
     // Mai nap zárása
-    (supabase.from('daily_closings') as any)
+    supabase.from('daily_closings')
       .select('date, status, halas_27, halas_18, halas_am, bufe_27, bufe_5, bufe_am, halas_pg_cash, bufe_pg_cash, member_loan, petty_cash_movement, daily_closing_expenses(*)')
       .eq('date', today)
       .maybeSingle(),
 
     // Aktuális hónap zárásai (bevétel)
-    (supabase.from('daily_closings') as any)
+    supabase.from('daily_closings')
       .select('halas_27, halas_18, halas_am, bufe_27, bufe_5, bufe_am, halas_pg_cash, bufe_pg_cash, member_loan, petty_cash_movement, daily_closing_expenses(amount)')
       .eq('status', 'final')
       .gte('date', monthStart)
       .lte('date', monthEnd),
 
     // Aktuális hónap kiadásai (purchases)
-    (supabase.from('purchases') as any)
+    supabase.from('purchases')
       .select('gross_amount, total_net')
       .gte('date', monthStart)
       .lte('date', monthEnd),
 
     // Nyitott (ki nem egyenlített) számlák
-    (supabase.from('purchases') as any)
+    supabase.from('purchases')
       .select('id, gross_amount, total_net, supplier_name, due_date')
       .eq('is_settled', false)
       .not('gross_amount', 'is', null)
       .order('due_date', { ascending: true }),
 
     // Utolsó 7 nap zárásai
-    (supabase.from('daily_closings') as any)
+    supabase.from('daily_closings')
       .select('date, status, halas_27, halas_18, halas_am, bufe_27, bufe_5, bufe_am, daily_closing_expenses(amount)')
       .gte('date', sevenDaysAgo)
       .lte('date', today)
       .order('date', { ascending: false }),
 
     // Legutóbbi 8 számla
-    (supabase.from('purchases') as any)
+    supabase.from('purchases')
       .select('id, date, supplier_name, gross_amount, total_net, is_settled, payment_method')
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(8),
 
     // Fast path: legutóbbi final zárás tárolt HP egyenlege (O(1))
-    (supabase.from('daily_closings') as any)
+    supabase.from('daily_closings')
       .select('expected_cash_closing')
       .eq('status', 'final')
       .order('date', { ascending: false })
@@ -93,24 +93,24 @@ export default async function DashboardPage() {
     : 0
 
   // ── Havi eredmény ───────────────────────────────────────────
-  const monthRevenue = ((monthClosings as any[]) || []).reduce((s: number, d: any) =>
+  const monthRevenue = (monthClosings || []).reduce((s, d) =>
     s + (d.halas_27||0) + (d.halas_18||0) + (d.halas_am||0) + (d.bufe_27||0) + (d.bufe_5||0) + (d.bufe_am||0), 0)
 
-  const monthExpenses = ((monthPurchases as any[]) || []).reduce((s: number, p: any) =>
+  const monthExpenses = (monthPurchases || []).reduce((s, p) =>
     s + (p.gross_amount ?? p.total_net ?? 0), 0)
 
   const monthBalance = monthRevenue - monthExpenses
 
   // ── Nyitott számlák ─────────────────────────────────────────
-  const openList = (openInvoices as any[]) || []
-  const openTotal = openList.reduce((s: number, p: any) => s + (p.gross_amount ?? p.total_net ?? 0), 0)
+  const openList = openInvoices || []
+  const openTotal = openList.reduce((s, p) => s + (p.gross_amount ?? p.total_net ?? 0), 0)
 
   // Lejárt (due_date < today)
-  const overdueCount = openList.filter((p: any) => p.due_date && p.due_date < today).length
+  const overdueCount = openList.filter((p) => p.due_date && p.due_date < today).length
 
   // ── Házipénztár gördülő egyenleg ────────────────────────────
   let hpBalance: number
-  const storedBalance = (latestFinalClosingForBalance as any)?.expected_cash_closing
+  const storedBalance = latestFinalClosingForBalance?.expected_cash_closing
 
   if (storedBalance != null) {
     // Fast path: tárolt érték (O(1))
@@ -118,23 +118,23 @@ export default async function DashboardPage() {
   } else {
     // Slow fallback: teljes lánc-számítás régi adatokhoz
     const [{ data: allFinalClosings }, { data: allKpPurchases }] = await Promise.all([
-      (supabase.from('daily_closings') as any)
+      supabase.from('daily_closings')
         .select('date, halas_pg_cash, bufe_pg_cash, member_loan, petty_cash_movement, daily_closing_expenses(amount)')
         .eq('status', 'final')
         .order('date', { ascending: true }),
-      (supabase.from('purchases') as any)
+      supabase.from('purchases')
         .select('date, gross_amount, total_net')
         .in('payment_method', ['cash']),
     ])
     const kpByDate: Record<string, number> = {}
-    for (const p of (allKpPurchases as any[]) || []) {
+    for (const p of allKpPurchases || []) {
       kpByDate[p.date] = (kpByDate[p.date] || 0) + Math.round((p.gross_amount ?? p.total_net ?? 0) / 100)
     }
     hpBalance = computeRunningHpBalance((allFinalClosings as any[]) || [], kpByDate)
   }
 
   // ── Utolsó 7 nap sorai ──────────────────────────────────────
-  const recentList = (recentClosings as any[]) || []
+  const recentList = recentClosings || []
 
   // Generáljuk az utolsó 7 napot (closingtól függetlenül)
   const last7: string[] = []
@@ -286,7 +286,7 @@ export default async function DashboardPage() {
           </div>
           <table className="w-full text-sm">
             <tbody className="divide-y divide-slate-100">
-              {((recentPurchases as any[]) || []).map((p: any) => {
+              {(recentPurchases || []).map((p) => {
                 const amt = p.gross_amount ?? p.total_net ?? 0
                 const displayDate = new Date(p.date + 'T12:00:00').toLocaleDateString('hu-HU', {
                   month: 'short', day: 'numeric',
