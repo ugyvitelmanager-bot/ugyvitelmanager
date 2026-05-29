@@ -137,6 +137,7 @@ export function DailyReportForm({
         <HalasPgBlock
           halas_27={formData.halas_27}
           halas_18={formData.halas_18}
+          halas_5={formData.halas_5}
           halas_am={formData.halas_am}
           halas_pg_cash={formData.halas_pg_cash}
           halas_pg_card={formData.halas_pg_card}
@@ -145,6 +146,7 @@ export function DailyReportForm({
         />
         <BufePgBlock
           bufe_27={formData.bufe_27}
+          bufe_18={formData.bufe_18}
           bufe_5={formData.bufe_5}
           bufe_am={formData.bufe_am}
           bufe_pg_cash={formData.bufe_pg_cash}

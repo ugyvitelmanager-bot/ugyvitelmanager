@@ -16,9 +16,9 @@ export function KonyvelesiBlock({ summary }: Props) {
       <div className="space-y-1 mb-4">
         <SectionTitle>ÁFA forgalom</SectionTitle>
         <Row label="27% ÁFA összforgalom" value={summary.total_27} />
-        <Row label="18% ÁFA forgalom (Halas)" value={summary.total_18} />
-        <Row label="5% ÁFA forgalom (Büfé)" value={summary.total_5} />
-        <Row label="Adómentes (AM)" value={summary.total_am} />
+        <Row label="18% ÁFA összforgalom" value={summary.total_18} />
+        <Row label="5% ÁFA összforgalom" value={summary.total_5} />
+        <Row label="AAM összforgalom" value={summary.total_am} />
       </div>
 
       <div className="space-y-1 pt-3 border-t border-slate-200">

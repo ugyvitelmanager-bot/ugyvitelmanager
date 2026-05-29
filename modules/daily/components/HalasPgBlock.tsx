@@ -1,11 +1,13 @@
 'use client'
 
 import { formatFt } from '../lib/calculations'
+import { VAT_RATE_LABELS } from '../lib/labels'
 import { FtInput, Row } from './shared/PgBlockHelpers'
 
 interface Props {
   halas_27: number
   halas_18: number
+  halas_5: number
   halas_am: number
   halas_pg_cash: number
   halas_pg_card: number
@@ -13,13 +15,14 @@ interface Props {
   onChange: (patch: {
     halas_27?: number
     halas_18?: number
+    halas_5?: number
     halas_am?: number
     halas_pg_cash?: number
     halas_pg_card?: number
   }) => void
 }
 
-export function HalasPgBlock({ halas_27, halas_18, halas_am, halas_pg_cash, halas_pg_card, total, onChange }: Props) {
+export function HalasPgBlock({ halas_27, halas_18, halas_5, halas_am, halas_pg_cash, halas_pg_card, total, onChange }: Props) {
   const pgPaymentSum = halas_pg_cash + halas_pg_card
   const pgDiff = total - pgPaymentSum
   const paymentFilled = halas_pg_cash > 0 || halas_pg_card > 0
@@ -34,13 +37,16 @@ export function HalasPgBlock({ halas_27, halas_18, halas_am, halas_pg_cash, hala
       {/* Adónem bontás */}
       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Adónem bontás</p>
       <div className="space-y-2 mb-4">
-        <Row label="27% ÁFA">
+        <Row label={VAT_RATE_LABELS[27]}>
           <FtInput value={halas_27} onChange={(v) => onChange({ halas_27: v })} colorClass="focus:ring-emerald-400" />
         </Row>
-        <Row label="18% ÁFA">
+        <Row label={VAT_RATE_LABELS[18]}>
           <FtInput value={halas_18} onChange={(v) => onChange({ halas_18: v })} colorClass="focus:ring-emerald-400" />
         </Row>
-        <Row label="Adómentes (AM)">
+        <Row label={VAT_RATE_LABELS[5]}>
+          <FtInput value={halas_5} onChange={(v) => onChange({ halas_5: v })} colorClass="focus:ring-emerald-400" />
+        </Row>
+        <Row label={VAT_RATE_LABELS.am}>
           <FtInput value={halas_am} onChange={(v) => onChange({ halas_am: v })} colorClass="focus:ring-emerald-400" />
         </Row>
       </div>

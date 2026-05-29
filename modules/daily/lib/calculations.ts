@@ -12,8 +12,8 @@ export function calculateDailySummary(
   openingCashBalance: number = 0
 ): DailySummary {
   // PG összesítők
-  const halas_pg_total = data.halas_27 + data.halas_18 + data.halas_am
-  const bufe_pg_total  = data.bufe_27  + data.bufe_5   + data.bufe_am
+  const halas_pg_total = data.halas_27 + data.halas_18 + data.halas_5 + data.halas_am
+  const bufe_pg_total  = data.bufe_27  + data.bufe_18  + data.bufe_5  + data.bufe_am
   const total_pg       = halas_pg_total + bufe_pg_total
 
   // PG fizetési mód összesítők (explicit, PG szerint)
@@ -34,8 +34,8 @@ export function calculateDailySummary(
 
   // ÁFA bontás
   const total_27 = data.halas_27 + data.bufe_27
-  const total_18 = data.halas_18
-  const total_5  = data.bufe_5
+  const total_18 = data.halas_18 + data.bufe_18
+  const total_5  = data.halas_5  + data.bufe_5
   const total_am = data.halas_am + data.bufe_am
 
   // Kiadások
@@ -125,11 +125,13 @@ export function formatFt(forint: number): string {
 export const EMPTY_FORM_DATA: DailyClosingFormData = {
   halas_27: 0,
   halas_18: 0,
+  halas_5: 0,
   halas_am: 0,
   halas_pg_cash: 0,
   halas_pg_card: 0,
   halas_terminal_card: 0,
   bufe_27: 0,
+  bufe_18: 0,
   bufe_5: 0,
   bufe_am: 0,
   bufe_pg_cash: 0,

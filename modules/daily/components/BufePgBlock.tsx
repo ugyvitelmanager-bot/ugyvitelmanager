@@ -1,10 +1,12 @@
 'use client'
 
 import { formatFt } from '../lib/calculations'
+import { VAT_RATE_LABELS } from '../lib/labels'
 import { FtInput, Row } from './shared/PgBlockHelpers'
 
 interface Props {
   bufe_27: number
+  bufe_18: number
   bufe_5: number
   bufe_am: number
   bufe_pg_cash: number
@@ -12,6 +14,7 @@ interface Props {
   total: number
   onChange: (patch: {
     bufe_27?: number
+    bufe_18?: number
     bufe_5?: number
     bufe_am?: number
     bufe_pg_cash?: number
@@ -19,7 +22,7 @@ interface Props {
   }) => void
 }
 
-export function BufePgBlock({ bufe_27, bufe_5, bufe_am, bufe_pg_cash, bufe_pg_card, total, onChange }: Props) {
+export function BufePgBlock({ bufe_27, bufe_18, bufe_5, bufe_am, bufe_pg_cash, bufe_pg_card, total, onChange }: Props) {
   const pgPaymentSum = bufe_pg_cash + bufe_pg_card
   const pgDiff = total - pgPaymentSum
   const paymentFilled = bufe_pg_cash > 0 || bufe_pg_card > 0
@@ -34,13 +37,16 @@ export function BufePgBlock({ bufe_27, bufe_5, bufe_am, bufe_pg_cash, bufe_pg_ca
       {/* Adónem bontás */}
       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Adónem bontás</p>
       <div className="space-y-2 mb-4">
-        <Row label="27% ÁFA">
+        <Row label={VAT_RATE_LABELS[27]}>
           <FtInput value={bufe_27} onChange={(v) => onChange({ bufe_27: v })} colorClass="focus:ring-blue-400" />
         </Row>
-        <Row label="5% ÁFA">
+        <Row label={VAT_RATE_LABELS[18]}>
+          <FtInput value={bufe_18} onChange={(v) => onChange({ bufe_18: v })} colorClass="focus:ring-blue-400" />
+        </Row>
+        <Row label={VAT_RATE_LABELS[5]}>
           <FtInput value={bufe_5} onChange={(v) => onChange({ bufe_5: v })} colorClass="focus:ring-blue-400" />
         </Row>
-        <Row label="Adómentes (AM)">
+        <Row label={VAT_RATE_LABELS.am}>
           <FtInput value={bufe_am} onChange={(v) => onChange({ bufe_am: v })} colorClass="focus:ring-blue-400" />
         </Row>
       </div>

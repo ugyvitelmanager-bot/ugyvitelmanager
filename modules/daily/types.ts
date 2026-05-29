@@ -16,6 +16,7 @@ export interface DailyClosingFormData {
   // HALAS pénztárgép (AP A17710081) — adónem bontás
   halas_27: number
   halas_18: number
+  halas_5: number
   halas_am: number
   // HALAS fizetési mód bontás (PG szerint)
   halas_pg_cash: number
@@ -24,6 +25,7 @@ export interface DailyClosingFormData {
   halas_terminal_card: number
   // BÜFÉ pénztárgép (AP A19202513) — adónem bontás
   bufe_27: number
+  bufe_18: number
   bufe_5: number
   bufe_am: number
   // BÜFÉ fizetési mód bontás (PG szerint)

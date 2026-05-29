@@ -15,6 +15,13 @@ export const CASH_PAYMENT_METHODS = [
   'cash',
 ] as const
 
+export const VAT_RATE_LABELS = {
+  27: '27% ÁFA',
+  18: '18% ÁFA',
+  5:  '5% ÁFA',
+  am: 'AAM',
+} as const
+
 export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cash:          'Készpénz (KP)',
   bank_transfer: 'Banki Utalás',
