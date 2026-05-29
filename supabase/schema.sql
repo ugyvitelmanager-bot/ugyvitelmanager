@@ -1,5 +1,6 @@
 -- ============================================================
 -- ÜGYVITEL MANAGER – Supabase Schema
+-- Last synced: 2026-05-29
 -- ============================================================
 -- Ezt a fájlt másold be a Supabase SQL Editor-ba és futtasd le.
 -- ============================================================
@@ -211,7 +212,19 @@ CREATE TABLE purchases (
   supplier_name TEXT NOT NULL,
   total_net BIGINT DEFAULT 0,
   payment_method TEXT NOT NULL,
-  note TEXT
+  note TEXT,
+  -- Fejléc szintű összegek (20260406)
+  net_amount       BIGINT,
+  vat_amount       BIGINT,
+  gross_amount     BIGINT,
+  performance_date DATE,
+  invoice_date     DATE,
+  due_date         DATE,
+  -- Kiegyenlített jelölő (20260409b)
+  is_settled BOOLEAN NOT NULL DEFAULT FALSE,
+  -- DB-szintű validáció (20260529c) — az RPCs is ellenőrzik, ez az extra biztosíték
+  CONSTRAINT purchases_payment_method_check
+    CHECK (payment_method IN ('cash', 'bank_transfer', 'card'))
 );
 
 -- ============================================================
@@ -224,11 +237,12 @@ CREATE TABLE purchases (
 CREATE TABLE purchase_line_items (
   id               UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   purchase_id      UUID    NOT NULL REFERENCES purchases(id) ON DELETE CASCADE,
-  product_id       UUID    NOT NULL REFERENCES products(id)  ON DELETE RESTRICT,
+  product_id       UUID    REFERENCES products(id)  ON DELETE RESTRICT,   -- nullable: cost soroknál NULL (20260401)
   quantity         NUMERIC(10,4) NOT NULL,
-  unit_id          UUID    NOT NULL REFERENCES units(id)     ON DELETE RESTRICT,
+  unit_id          UUID    REFERENCES units(id)     ON DELETE RESTRICT,   -- nullable: cost soroknál NULL (20260401)
   unit_price_net   INTEGER NOT NULL,   -- fillér; illeszkedik products.purchase_price_net INTEGER
   line_total_net   BIGINT  NOT NULL,   -- fillér; illeszkedik purchases.total_net BIGINT
+  description      TEXT,              -- cost sorokhoz: product_id IS NULL esetén kötelező (20260401)
   created_at       TIMESTAMPTZ DEFAULT now()
 );
 
@@ -271,6 +285,78 @@ CREATE TABLE daily_reports (
   vat_0_gross BIGINT DEFAULT 0,
   note TEXT
 );
+
+-- ============================================================
+-- 4e. NAPI ZÁRÁS (20260331)
+-- FÜGGETLEN a daily_reports táblától (incomes modul).
+-- Egy rekord per nap; tételszintű kiadások: daily_closing_expenses (1:N).
+-- ============================================================
+
+CREATE TABLE daily_closings (
+  id                    UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  date                  DATE        UNIQUE NOT NULL,
+
+  -- HALAS pénztárgép (AP A17710081) — adónem bontás, fillér
+  halas_27              INTEGER     NOT NULL DEFAULT 0,
+  halas_18              INTEGER     NOT NULL DEFAULT 0,
+  halas_5               BIGINT      NOT NULL DEFAULT 0,  -- (20260529b)
+  halas_am              INTEGER     NOT NULL DEFAULT 0,
+
+  -- HALAS fizetési mód bontás (PG szerint), fillér
+  halas_pg_cash         INTEGER     NOT NULL DEFAULT 0,
+  halas_pg_card         INTEGER     NOT NULL DEFAULT 0,
+
+  -- HALAS terminál tényleges zárás, fillér
+  halas_terminal_card   INTEGER     NOT NULL DEFAULT 0,
+
+  -- BÜFÉ pénztárgép (AP A19202513) — adónem bontás, fillér
+  bufe_27               INTEGER     NOT NULL DEFAULT 0,
+  bufe_5                INTEGER     NOT NULL DEFAULT 0,
+  bufe_18               BIGINT      NOT NULL DEFAULT 0,  -- (20260529b)
+  bufe_am               INTEGER     NOT NULL DEFAULT 0,
+
+  -- BÜFÉ fizetési mód bontás (PG szerint), fillér
+  bufe_pg_cash          INTEGER     NOT NULL DEFAULT 0,
+  bufe_pg_card          INTEGER     NOT NULL DEFAULT 0,
+
+  -- BÜFÉ terminál tényleges zárás, fillér
+  bufe_terminal_card    INTEGER     NOT NULL DEFAULT 0,
+
+  -- Tagi kölcsön (ha volt aznap bevitel), fillér
+  member_loan           INTEGER     NOT NULL DEFAULT 0,
+  member_loan_note      TEXT,
+
+  -- Házipénztár mozgás (pozitív = betett, negatív = kivett), fillér
+  petty_cash_movement   INTEGER     NOT NULL DEFAULT 0,
+  petty_cash_note       TEXT,
+
+  -- Várható KP záróállás mentve záráskor (fillér). NULL = régi adat (20260525)
+  expected_cash_closing BIGINT,
+
+  -- Meta
+  notes                 TEXT,
+  status                TEXT        NOT NULL DEFAULT 'draft'
+                                    CHECK (status IN ('draft', 'final')),
+  created_at            TIMESTAMPTZ DEFAULT now(),
+  updated_at            TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_closings_date
+  ON daily_closings (date);
+
+CREATE TABLE daily_closing_expenses (
+  id                    UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  daily_closing_id      UUID        NOT NULL
+                                    REFERENCES daily_closings(id)
+                                    ON DELETE CASCADE,
+  amount                INTEGER     NOT NULL,   -- fillér
+  note                  TEXT        NOT NULL DEFAULT '',
+  sort_order            SMALLINT    NOT NULL DEFAULT 0,
+  created_at            TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_closing_expenses_closing
+  ON daily_closing_expenses (daily_closing_id);
 
 -- ============================================================
 -- 5. BEVÉTELEK
@@ -487,13 +573,16 @@ $$;
 -- Visszaad: purchases.id — a TS oldal cash_transactions FK-hoz használja.
 -- ============================================================
 
+-- record_purchase_core: legújabb verzió (20260409_add_card_payment)
+-- Támogatja: termék sorok (product_id IS NOT NULL) + cost sorok (product_id IS NULL)
+-- payment_method: 'cash' | 'bank_transfer' | 'card'
 CREATE OR REPLACE FUNCTION record_purchase_core(
   p_date            DATE,
   p_supplier_name   TEXT,
   p_invoice_number  TEXT,
   p_payment_method  TEXT,
   p_total_net       BIGINT,
-  p_items           JSONB
+  p_items           JSONB   -- [{product_id?, quantity?, unit_id?, unit_price_net, description?}]
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -502,6 +591,7 @@ AS $$
 DECLARE
   v_purchase_id     UUID;
   v_item            JSONB;
+  v_is_product      BOOLEAN;
   v_product_id      UUID;
   v_quantity        NUMERIC(10,4);
   v_unit_id         UUID;
@@ -515,9 +605,9 @@ BEGIN
     RAISE EXCEPTION 'supplier_name nem lehet üres';
   END IF;
 
-  IF p_payment_method NOT IN ('cash_daily', 'cash_petty', 'bank_transfer', 'member_loan_cash') THEN
+  IF p_payment_method NOT IN ('cash', 'bank_transfer', 'card') THEN
     RAISE EXCEPTION
-      'Érvénytelen payment_method: "%". Elfogadott értékek: cash_daily, cash_petty, bank_transfer, member_loan_cash',
+      'Érvénytelen payment_method: "%". Elfogadott értékek: cash, bank_transfer, card',
       p_payment_method;
   END IF;
 
@@ -528,25 +618,33 @@ BEGIN
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
   LOOP
     v_item_index := v_item_index + 1;
+    v_is_product := (v_item->>'product_id') IS NOT NULL;
 
-    IF (v_item->>'product_id') IS NULL THEN
-      RAISE EXCEPTION 'product_id hiányzik a(z) %-. tételből', v_item_index;
-    END IF;
-    IF (v_item->>'unit_id') IS NULL THEN
-      RAISE EXCEPTION 'unit_id hiányzik a(z) %-. tételből', v_item_index;
-    END IF;
-    IF (v_item->>'quantity') IS NULL OR (v_item->>'quantity')::NUMERIC <= 0 THEN
-      RAISE EXCEPTION 'quantity > 0 szükséges a(z) %-. tételnél (kapott: %)',
-        v_item_index, COALESCE(v_item->>'quantity', 'NULL');
-    END IF;
-    IF (v_item->>'unit_price_net') IS NULL OR (v_item->>'unit_price_net')::INTEGER <= 0 THEN
-      RAISE EXCEPTION 'unit_price_net > 0 szükséges a(z) %-. tételnél (kapott: %)',
-        v_item_index, COALESCE(v_item->>'unit_price_net', 'NULL');
+    IF v_is_product THEN
+      IF (v_item->>'unit_id') IS NULL THEN
+        RAISE EXCEPTION 'unit_id hiányzik a(z) %-. tételből', v_item_index;
+      END IF;
+      IF (v_item->>'quantity') IS NULL OR (v_item->>'quantity')::NUMERIC <= 0 THEN
+        RAISE EXCEPTION 'quantity > 0 szükséges a(z) %-. tételnél (kapott: %)',
+          v_item_index, COALESCE(v_item->>'quantity', 'NULL');
+      END IF;
+      IF (v_item->>'unit_price_net') IS NULL OR (v_item->>'unit_price_net')::INTEGER <= 0 THEN
+        RAISE EXCEPTION 'unit_price_net > 0 szükséges a(z) %-. tételnél (kapott: %)',
+          v_item_index, COALESCE(v_item->>'unit_price_net', 'NULL');
+      END IF;
+    ELSE
+      IF (v_item->>'description') IS NULL OR TRIM(v_item->>'description') = '' THEN
+        RAISE EXCEPTION 'description megadása kötelező a(z) %-. költség tételnél', v_item_index;
+      END IF;
+      IF (v_item->>'unit_price_net') IS NULL OR (v_item->>'unit_price_net')::INTEGER <= 0 THEN
+        RAISE EXCEPTION 'unit_price_net > 0 szükséges a(z) %-. tételnél (kapott: %)',
+          v_item_index, COALESCE(v_item->>'unit_price_net', 'NULL');
+      END IF;
     END IF;
 
     v_computed_total := v_computed_total
       + ROUND(
-          (v_item->>'quantity')::NUMERIC(10,4)
+          COALESCE((v_item->>'quantity')::NUMERIC(10,4), 1)
           * (v_item->>'unit_price_net')::BIGINT
         )::BIGINT;
   END LOOP;
@@ -557,43 +655,277 @@ BEGIN
       p_total_net, v_computed_total;
   END IF;
 
-  INSERT INTO purchases (date, supplier_name, invoice_number, payment_method, total_net)
+  INSERT INTO purchases (date, supplier_name, invoice_number, payment_method, total_net, net_amount)
   VALUES (
     p_date,
     TRIM(p_supplier_name),
     NULLIF(TRIM(COALESCE(p_invoice_number, '')), ''),
     p_payment_method,
+    p_total_net,
     p_total_net
   )
   RETURNING id INTO v_purchase_id;
 
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
   LOOP
-    v_product_id     := (v_item->>'product_id')::UUID;
-    v_quantity       := (v_item->>'quantity')::NUMERIC(10,4);
-    v_unit_id        := (v_item->>'unit_id')::UUID;
+    v_is_product     := (v_item->>'product_id') IS NOT NULL;
     v_unit_price_net := (v_item->>'unit_price_net')::INTEGER;
 
-    v_line_total := ROUND(v_quantity * v_unit_price_net::BIGINT)::BIGINT;
+    IF v_is_product THEN
+      v_product_id := (v_item->>'product_id')::UUID;
+      v_quantity   := (v_item->>'quantity')::NUMERIC(10,4);
+      v_unit_id    := (v_item->>'unit_id')::UUID;
+      v_line_total := ROUND(v_quantity * v_unit_price_net::BIGINT)::BIGINT;
 
-    INSERT INTO purchase_line_items (
-      purchase_id, product_id, quantity, unit_id, unit_price_net, line_total_net
-    )
-    VALUES (v_purchase_id, v_product_id, v_quantity, v_unit_id, v_unit_price_net, v_line_total);
+      INSERT INTO purchase_line_items (
+        purchase_id, product_id, quantity, unit_id, unit_price_net, line_total_net
+      )
+      VALUES (v_purchase_id, v_product_id, v_quantity, v_unit_id, v_unit_price_net, v_line_total);
 
-    UPDATE products
-    SET
-      current_stock      = COALESCE(current_stock, 0) + v_quantity,
-      purchase_price_net = v_unit_price_net,
-      updated_at         = NOW()
-    WHERE id = v_product_id;
+      UPDATE products
+      SET
+        current_stock      = COALESCE(current_stock, 0) + v_quantity,
+        purchase_price_net = v_unit_price_net,
+        updated_at         = NOW()
+      WHERE id = v_product_id;
 
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'Termék nem található az adatbázisban: %', v_product_id;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'Termék nem található az adatbázisban: %', v_product_id;
+      END IF;
+
+    ELSE
+      v_line_total := v_unit_price_net::BIGINT;
+
+      INSERT INTO purchase_line_items (
+        purchase_id, product_id, quantity, unit_id, unit_price_net, line_total_net, description
+      )
+      VALUES (
+        v_purchase_id, NULL, 1, NULL, v_unit_price_net, v_line_total,
+        TRIM(v_item->>'description')
+      );
     END IF;
+
   END LOOP;
 
   RETURN v_purchase_id;
+END;
+$$;
+
+-- ============================================================
+-- 11d. RECORD_PURCHASE_HEADER RPC (20260406, frissítve: 20260409b)
+-- Gyors fejléc rögzítés tételsorok nélkül. Visszaad: purchases.id
+-- payment_method: 'cash' | 'bank_transfer' | 'card'
+-- Negatív összeg engedélyezett (helyesbítő számlákhoz).
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION record_purchase_header(
+  p_date             DATE,
+  p_supplier_name    TEXT,
+  p_invoice_number   TEXT,
+  p_payment_method   TEXT,
+  p_net_amount       BIGINT,
+  p_vat_amount       BIGINT,
+  p_gross_amount     BIGINT,
+  p_performance_date DATE DEFAULT NULL,
+  p_invoice_date     DATE DEFAULT NULL,
+  p_due_date         DATE DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_purchase_id UUID;
+BEGIN
+
+  IF p_supplier_name IS NULL OR TRIM(p_supplier_name) = '' THEN
+    RAISE EXCEPTION 'supplier_name nem lehet üres';
+  END IF;
+
+  IF p_payment_method NOT IN ('cash', 'bank_transfer', 'card') THEN
+    RAISE EXCEPTION
+      'Érvénytelen payment_method: "%". Elfogadott értékek: cash, bank_transfer, card',
+      p_payment_method;
+  END IF;
+
+  IF p_net_amount IS NULL OR p_net_amount = 0 THEN
+    RAISE EXCEPTION 'net_amount nem lehet NULL vagy nulla (kapott: %)', COALESCE(p_net_amount::TEXT, 'NULL');
+  END IF;
+
+  IF p_gross_amount IS NULL OR p_gross_amount = 0 THEN
+    RAISE EXCEPTION 'gross_amount nem lehet NULL vagy nulla (kapott: %)', COALESCE(p_gross_amount::TEXT, 'NULL');
+  END IF;
+
+  INSERT INTO purchases (
+    date, supplier_name, invoice_number, payment_method,
+    total_net, net_amount, vat_amount, gross_amount,
+    performance_date, invoice_date, due_date
+  ) VALUES (
+    p_date,
+    TRIM(p_supplier_name),
+    NULLIF(TRIM(COALESCE(p_invoice_number, '')), ''),
+    p_payment_method,
+    p_net_amount,
+    p_net_amount,
+    p_vat_amount,
+    p_gross_amount,
+    p_performance_date,
+    p_invoice_date,
+    p_due_date
+  )
+  RETURNING id INTO v_purchase_id;
+
+  RETURN v_purchase_id;
+END;
+$$;
+
+-- ============================================================
+-- 11e. APPLY_PURCHASE_LINE_ITEMS RPC (20260406)
+-- Idempotens tételsor csere meglévő purchase-hez.
+-- Visszavonja a régi készlethatást, törli a régi sorokat, beilleszti az újakat.
+-- NEM érinti a cash_transactions táblát.
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION apply_purchase_line_items(
+  p_purchase_id UUID,
+  p_items       JSONB
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_item         JSONB;
+  v_old_item     RECORD;
+  v_item_index   INTEGER := 0;
+  v_is_product   BOOLEAN;
+  v_product_id   UUID;
+  v_quantity     NUMERIC(10,4);
+  v_unit_id      UUID;
+  v_unit_price   INTEGER;
+  v_line_total   BIGINT;
+  v_new_total    BIGINT := 0;
+BEGIN
+
+  IF NOT EXISTS (SELECT 1 FROM purchases WHERE id = p_purchase_id) THEN
+    RAISE EXCEPTION 'Purchase nem található: %', p_purchase_id;
+  END IF;
+
+  IF p_items IS NULL OR jsonb_typeof(p_items) != 'array' OR jsonb_array_length(p_items) = 0 THEN
+    RAISE EXCEPTION 'p_items nem lehet üres — tételsor törléshez a purchase törlést használd';
+  END IF;
+
+  -- FÁZIS 1: Validáció
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+  LOOP
+    v_item_index := v_item_index + 1;
+    v_is_product := (v_item->>'product_id') IS NOT NULL;
+
+    IF v_is_product THEN
+      IF (v_item->>'unit_id') IS NULL THEN
+        RAISE EXCEPTION 'unit_id hiányzik a(z) %-. tételből', v_item_index;
+      END IF;
+      IF (v_item->>'quantity') IS NULL OR (v_item->>'quantity')::NUMERIC <= 0 THEN
+        RAISE EXCEPTION 'quantity > 0 szükséges a(z) %-. tételnél', v_item_index;
+      END IF;
+      IF (v_item->>'unit_price_net') IS NULL OR (v_item->>'unit_price_net')::INTEGER <= 0 THEN
+        RAISE EXCEPTION 'unit_price_net > 0 szükséges a(z) %-. tételnél', v_item_index;
+      END IF;
+    ELSE
+      IF (v_item->>'description') IS NULL OR TRIM(v_item->>'description') = '' THEN
+        RAISE EXCEPTION 'description kötelező a(z) %-. költség tételnél', v_item_index;
+      END IF;
+      IF (v_item->>'unit_price_net') IS NULL OR (v_item->>'unit_price_net')::INTEGER <= 0 THEN
+        RAISE EXCEPTION 'unit_price_net > 0 szükséges a(z) %-. tételnél', v_item_index;
+      END IF;
+    END IF;
+  END LOOP;
+
+  -- FÁZIS 2: Régi termék sorok készlethatásának visszavonása
+  FOR v_old_item IN
+    SELECT pli.product_id, pli.quantity
+    FROM purchase_line_items pli
+    WHERE pli.purchase_id = p_purchase_id AND pli.product_id IS NOT NULL
+  LOOP
+    UPDATE products
+    SET current_stock = COALESCE(current_stock, 0) - v_old_item.quantity,
+        updated_at    = NOW()
+    WHERE id = v_old_item.product_id;
+  END LOOP;
+
+  -- FÁZIS 3: Régi tételsorok törlése
+  DELETE FROM purchase_line_items WHERE purchase_id = p_purchase_id;
+
+  -- FÁZIS 4: Új tételsorok beillesztése + készlet/ár frissítés
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+  LOOP
+    v_is_product := (v_item->>'product_id') IS NOT NULL;
+    v_unit_price := (v_item->>'unit_price_net')::INTEGER;
+
+    IF v_is_product THEN
+      v_product_id := (v_item->>'product_id')::UUID;
+      v_quantity   := (v_item->>'quantity')::NUMERIC(10,4);
+      v_unit_id    := (v_item->>'unit_id')::UUID;
+      v_line_total := ROUND(v_quantity * v_unit_price::BIGINT)::BIGINT;
+
+      INSERT INTO purchase_line_items (
+        purchase_id, product_id, quantity, unit_id, unit_price_net, line_total_net
+      ) VALUES (p_purchase_id, v_product_id, v_quantity, v_unit_id, v_unit_price, v_line_total);
+
+      UPDATE products
+      SET current_stock      = COALESCE(current_stock, 0) + v_quantity,
+          purchase_price_net = v_unit_price,
+          updated_at         = NOW()
+      WHERE id = v_product_id;
+
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'Termék nem található: %', v_product_id;
+      END IF;
+
+    ELSE
+      v_line_total := v_unit_price::BIGINT;
+
+      INSERT INTO purchase_line_items (
+        purchase_id, product_id, quantity, unit_id, unit_price_net, line_total_net, description
+      ) VALUES (
+        p_purchase_id, NULL, 1, NULL, v_unit_price, v_line_total,
+        TRIM(v_item->>'description')
+      );
+    END IF;
+
+    v_new_total := v_new_total + v_line_total;
+  END LOOP;
+
+  -- FÁZIS 5: purchases.total_net frissítése (net_amount = fejléc marad)
+  UPDATE purchases SET total_net = v_new_total WHERE id = p_purchase_id;
+
+END;
+$$;
+
+-- ============================================================
+-- 11f. REPLACE_DAILY_CLOSING_EXPENSES RPC (20260529)
+-- Atomikus kiadás-csere: DELETE + INSERT egy tranzakcióban.
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION replace_daily_closing_expenses(
+  p_closing_id UUID,
+  p_expenses   JSONB  -- [{amount: integer, note: text, sort_order: integer}]
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+BEGIN
+  DELETE FROM daily_closing_expenses
+  WHERE daily_closing_id = p_closing_id;
+
+  INSERT INTO daily_closing_expenses (daily_closing_id, amount, note, sort_order)
+  SELECT
+    p_closing_id,
+    (item->>'amount')::INTEGER,
+    COALESCE(item->>'note', ''),
+    (item->>'sort_order')::SMALLINT
+  FROM jsonb_array_elements(p_expenses) AS item;
 END;
 $$;
 
@@ -680,9 +1012,37 @@ CREATE POLICY "Authenticated users can write" ON purchases FOR ALL TO authentica
 CREATE POLICY "Authenticated users can write" ON cash_transactions FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated users can write" ON daily_reports FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
+-- Napi zárás táblák (20260331)
+ALTER TABLE daily_closings          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_closing_expenses  ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can manage daily_closings"
+  ON daily_closings FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can manage daily_closing_expenses"
+  ON daily_closing_expenses FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
 -- Profil: csak a saját profilt láthatja/szerkesztheti
 CREATE POLICY "Users can view own profile" ON profiles FOR SELECT TO authenticated USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
+
+-- ============================================================
+-- 12b. INDEXEK (20260525b)
+-- ============================================================
+
+CREATE INDEX IF NOT EXISTS idx_purchases_date
+  ON purchases (date);
+
+CREATE INDEX IF NOT EXISTS idx_purchases_payment_method
+  ON purchases (payment_method);
+
+CREATE INDEX IF NOT EXISTS idx_purchases_is_settled
+  ON purchases (is_settled);
+
+CREATE INDEX IF NOT EXISTS idx_cash_transactions_date
+  ON cash_transactions (date);
 
 -- ============================================================
 -- 13. SEED ADATOK (alapértelmezett törzsadatok)
@@ -698,7 +1058,9 @@ INSERT INTO units (name, symbol, precision) VALUES
   ('kilogramm', 'kg', 3),
   ('liter', 'l', 3),
   ('csomag', 'cs', 0),
-  ('adag', 'adag', 0);
+  ('adag', 'adag', 0),
+  ('gramma', 'gr', 1),        -- hozzáadva: 20260401
+  ('milliliter', 'ml', 1);    -- hozzáadva: 20260401
 
 INSERT INTO sales_sources (name, source_type, business_area) VALUES
   ('Büfé pénztárgép', 'cash_register', 'buffet'),

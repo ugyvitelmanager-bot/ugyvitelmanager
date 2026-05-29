@@ -45,7 +45,10 @@ export function roundToForint(valueInFiller: number): number {
 }
 
 /**
- * Fillér → Forint megjelenítés
+ * Fillér → Forint megjelenítés.
+ * Input: fillér (integer). 1 Ft = 100 fillér, pl. 500000 fillér = 5 000 Ft.
+ * Ha Ft értéked van, konvertálj előbb: formatCurrency(forint * 100)
+ * Lásd még: formatFt() @ modules/daily/lib/calculations.ts — az forintot vár, nem filléret.
  */
 export function formatCurrency(amountInFiller: number): string {
   const forint = amountInFiller / 100

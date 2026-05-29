@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CarpLove Ügyviteli Manager
 
-## Getting Started
+Belső ügyviteli rendszer a CarpLove horgászközpont számára: napi elszámolás, bevétel/kiadás kezelés, készletnyilvántartás, rendezvény-ajánlatok.
 
-First, run the development server:
+## Tech stack
+
+- **Next.js** (App Router) — `app/` könyvtár, server actions
+- **Supabase** — PostgreSQL, RLS, RPCs, realtime
+- **TypeScript** — strict mode
+- **Tailwind CSS** — utility-first stílusok
+- **Vercel** — deploy
+
+## Supabase projekt
+
+- **Project ref:** `rjhqrniwmowqddaizufe`
+- **Dashboard:** [supabase.com/dashboard/project/rjhqrniwmowqddaizufe](https://supabase.com/dashboard/project/rjhqrniwmowqddaizufe)
+
+## Helyi fejlesztés
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Másold be a `.env.local.example` tartalmát `.env.local`-ba és töltsd ki a Supabase URL + anon key értékeket.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Types generálás
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Ha a DB sémája változott (migráció futott), regeneráld a TypeScript típusokat:
 
-## Learn More
+```bash
+npx supabase login   # csak egyszer szükséges
+npx supabase gen types typescript --project-id rjhqrniwmowqddaizufe --schema public > types/database.ts
+```
 
-To learn more about Next.js, take a look at the following resources:
+A generált fájl (`types/database.ts`) ne legyen kézzel szerkesztve — a `types/index.ts` wrapper exportálja a szükséges típusokat.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Séma és migrációk
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Canonical séma:** `supabase/schema.sql` — friss DB-t ebből lehet felállítani
+- **Migrációk:** `supabase/migrations/` — kronológikus változások
 
-## Deploy on Vercel
+Új migráció futtatása: másold be a Supabase SQL Editor-ba és futtasd le.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Főbb architektúrális döntések
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Döntés | Indok |
+|--------|-------|
+| **Fillér-alapú pénz** | `purchases.total_net`, `gross_amount` stb. mind `BIGINT` fillérben. 1 Ft = 100 fillér. Elkerüli a lebegőpontos kerekítési hibákat. |
+| **Moduláris struktúra** | `modules/daily/`, `modules/purchases/`, `modules/cash/` stb. — feature-first szervezés |
+| **Server Actions** | Adatmódosítások `modules/*/actions.ts` fájlokban, nem API route-okon keresztül |
+| **Atomic RPCs** | `record_purchase_core`, `record_purchase_header`, `apply_purchase_line_items` — DB-oldalon garantálják a konzisztenciát |
+| **Két purchases flow** | `purchase_headers/purchase_items` (Phase 2, nem aktív) vs `purchases/purchase_line_items` (MVP, aktív) — Phase 2-ben konsolidálandó |
+
+## Modulok
+
+| Modul | Útvonal | Státusz |
+|-------|---------|---------|
+| Napi elszámolás | `/napi` | Aktív |
+| Beszerzések | `/beszerzes` | Aktív |
+| Pénztár | `/penztar` | Aktív |
+| Termékek | `/products` | Aktív |
+| Receptek | `/recipes` | Aktív |
+| Étlap | `/etlap` | Aktív |
+| Dashboard | `/` | Aktív |

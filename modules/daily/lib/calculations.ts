@@ -112,7 +112,12 @@ export function computeRunningHpBalance(
   return balance
 }
 
-/** Forint összeg formázása — pl. 45 200 Ft */
+/**
+ * Forint összeg formázása — pl. 45 200 Ft.
+ * Input: forint (NEM fillér). A daily modul számításai Ft-ban dolgoznak.
+ * Ha fillér értéked van, konvertálj előbb: formatFt(filler / 100)
+ * Lásd még: formatCurrency() @ lib/finance.ts — az filléret vár, nem forintot.
+ */
 export function formatFt(forint: number): string {
   return new Intl.NumberFormat('hu-HU', {
     style: 'currency',
