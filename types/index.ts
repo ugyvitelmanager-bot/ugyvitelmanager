@@ -2,6 +2,8 @@
 // database.ts is auto-generated and gets overwritten by:
 //   npx supabase gen types typescript --project-id rjhqrniwmowqddaizufe --schema public > types/database.ts
 
+import type { Database } from './database'
+
 export type { Json, Database } from './database'
 
 // ── Generic table helpers ────────────────────────────────────
