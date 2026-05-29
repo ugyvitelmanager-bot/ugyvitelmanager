@@ -23,7 +23,7 @@ const today = new Date().toISOString().split('T')[0]
 const EMPTY = {
   chip_id: '',
   name: '',
-  type: 'tukros' as FishType,
+  type: 'tükrös' as FishType,
   caught_at: today,
   weight_kg: '',
   station: '',

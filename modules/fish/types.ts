@@ -1,6 +1,6 @@
-export type FishType = 'tukros' | 'tőponty' | 'amur' | 'busa' | 'egyéb'
+export type FishType = 'tükrös' | 'tőponty' | 'amur' | 'busa' | 'egyéb'
 
-export const FISH_TYPES: FishType[] = ['tukros', 'tőponty', 'amur', 'busa', 'egyéb']
+export const FISH_TYPES: FishType[] = ['tükrös', 'tőponty', 'amur', 'busa', 'egyéb']
 
 export interface FishRow {
   id: string

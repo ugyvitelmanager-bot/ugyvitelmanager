@@ -8,7 +8,7 @@ interface Props {
 }
 
 const TYPE_BADGE: Record<FishType, string> = {
-  tukros:  'bg-blue-100 text-blue-800',
+  tükrös:  'bg-blue-100 text-blue-800',
   tőponty: 'bg-green-100 text-green-800',
   amur:    'bg-orange-100 text-orange-800',
   busa:    'bg-purple-100 text-purple-800',
