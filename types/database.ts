@@ -1425,6 +1425,19 @@ export type Database = {
         Args: { p_items: Json; p_purchase_id: string }
         Returns: undefined
       }
+      create_fish_with_catch: {
+        Args: {
+          p_angler_first_name: string
+          p_caught_at: string
+          p_chip_id: string
+          p_name: string
+          p_notes?: string
+          p_station: string
+          p_type: string
+          p_weight_grams: number
+        }
+        Returns: string
+      }
       increment_product_stock: {
         Args: { p_product_id: string; p_quantity_delta: number }
         Returns: number
