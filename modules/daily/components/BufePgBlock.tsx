@@ -1,6 +1,7 @@
 'use client'
 
 import { formatFt } from '../lib/calculations'
+import { FtInput, Row } from './shared/PgBlockHelpers'
 
 interface Props {
   bufe_27: number
@@ -16,30 +17,6 @@ interface Props {
     bufe_pg_cash?: number
     bufe_pg_card?: number
   }) => void
-}
-
-function FtInput({
-  value,
-  onChange,
-  colorClass = 'focus:ring-blue-400',
-}: {
-  value: number
-  onChange: (v: number) => void
-  colorClass?: string
-}) {
-  return (
-    <input
-      type="number"
-      min="0"
-      step="1"
-      placeholder="0"
-      value={value === 0 ? '' : value}
-      onChange={(e) =>
-        onChange(e.target.value === '' ? 0 : Math.max(0, Math.round(parseFloat(e.target.value) || 0)))
-      }
-      className={`w-28 sm:w-40 text-right font-mono border border-slate-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 ${colorClass} bg-white`}
-    />
-  )
 }
 
 export function BufePgBlock({ bufe_27, bufe_5, bufe_am, bufe_pg_cash, bufe_pg_card, total, onChange }: Props) {
@@ -58,13 +35,13 @@ export function BufePgBlock({ bufe_27, bufe_5, bufe_am, bufe_pg_cash, bufe_pg_ca
       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Adónem bontás</p>
       <div className="space-y-2 mb-4">
         <Row label="27% ÁFA">
-          <FtInput value={bufe_27} onChange={(v) => onChange({ bufe_27: v })} />
+          <FtInput value={bufe_27} onChange={(v) => onChange({ bufe_27: v })} colorClass="focus:ring-blue-400" />
         </Row>
         <Row label="5% ÁFA">
-          <FtInput value={bufe_5} onChange={(v) => onChange({ bufe_5: v })} />
+          <FtInput value={bufe_5} onChange={(v) => onChange({ bufe_5: v })} colorClass="focus:ring-blue-400" />
         </Row>
         <Row label="Adómentes (AM)">
-          <FtInput value={bufe_am} onChange={(v) => onChange({ bufe_am: v })} />
+          <FtInput value={bufe_am} onChange={(v) => onChange({ bufe_am: v })} colorClass="focus:ring-blue-400" />
         </Row>
       </div>
 
@@ -98,18 +75,6 @@ export function BufePgBlock({ bufe_27, bufe_5, bufe_am, bufe_pg_cash, bufe_pg_ca
           <span className="text-xs font-bold text-emerald-700">✓ KP+BK egyezik a PG összeggel</span>
         </div>
       )}
-    </div>
-  )
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-slate-600 flex-1 min-w-0">{label}</span>
-      <div className="flex items-center gap-1.5">
-        {children}
-        <span className="text-xs text-slate-400">Ft</span>
-      </div>
     </div>
   )
 }
