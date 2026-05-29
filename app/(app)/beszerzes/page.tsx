@@ -7,15 +7,57 @@ import type { ProductOption, UnitOption, PurchaseRow } from '@/modules/purchases
 
 export const dynamic = 'force-dynamic'
 
-export default async function BeszerzesPage() {
+const PAGE_SIZE = 50
+
+interface PageProps {
+  searchParams: Promise<{
+    q?: string
+    pay?: string
+    settled?: string
+    from?: string
+    to?: string
+    page?: string
+  }>
+}
+
+export default async function BeszerzesPage({ searchParams }: PageProps) {
   const supabase = await createClient()
+  const params = await searchParams
+
+  const search        = params.q       || ''
+  const payFilter     = params.pay     || 'all'
+  const settledFilter = params.settled || 'all'
+  const dateFrom      = params.from    || ''
+  const dateTo        = params.to      || ''
+  const currentPage   = Math.max(0, parseInt(params.page || '0', 10))
+
+  let purchasesQuery = (supabase.from('purchases') as any)
+    .select(
+      'id, date, supplier_name, invoice_number, payment_method, total_net, net_amount, vat_amount, gross_amount, performance_date, invoice_date, due_date, is_settled, purchase_line_items(id)',
+      { count: 'exact' }
+    )
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1)
+
+  if (search) {
+    purchasesQuery = purchasesQuery.or(
+      `supplier_name.ilike.%${search}%,invoice_number.ilike.%${search}%`
+    )
+  }
+  if (payFilter !== 'all') {
+    purchasesQuery = purchasesQuery.eq('payment_method', payFilter)
+  }
+  if (settledFilter === 'yes') {
+    purchasesQuery = purchasesQuery.eq('is_settled', true)
+  } else if (settledFilter === 'no') {
+    purchasesQuery = purchasesQuery.eq('is_settled', false)
+  }
+  if (dateFrom) purchasesQuery = purchasesQuery.gte('date', dateFrom)
+  if (dateTo)   purchasesQuery = purchasesQuery.lte('date', dateTo)
 
   const [purchasesRes, productsRes, unitsRes] = await Promise.all([
-    (supabase.from('purchases') as any)
-      .select('id, date, supplier_name, invoice_number, payment_method, total_net, net_amount, vat_amount, gross_amount, performance_date, invoice_date, due_date, is_settled, purchase_line_items(id)')
-      .order('date', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(2000),
+    purchasesQuery,
 
     (supabase.from('products') as any)
       .select('id, name, unit_id, units(id, symbol)')
@@ -28,7 +70,8 @@ export default async function BeszerzesPage() {
       .order('symbol'),
   ])
 
-  const purchases: PurchaseRow[] = purchasesRes.data ?? []
+  const purchases: PurchaseRow[]  = purchasesRes.data  ?? []
+  const totalCount: number        = purchasesRes.count ?? 0
 
   const products: ProductOption[] = (productsRes.data ?? []).map((p: any) => ({
     id: p.id,
@@ -63,7 +106,19 @@ export default async function BeszerzesPage() {
       </div>
 
       {/* Lista */}
-      <PurchaseList purchases={purchases} products={products} units={units} />
+      <PurchaseList
+        purchases={purchases}
+        products={products}
+        units={units}
+        totalCount={totalCount}
+        currentPage={currentPage}
+        pageSize={PAGE_SIZE}
+        initialSearch={search}
+        initialPayFilter={payFilter}
+        initialSettledFilter={settledFilter}
+        initialDateFrom={dateFrom}
+        initialDateTo={dateTo}
+      />
     </div>
   )
 }

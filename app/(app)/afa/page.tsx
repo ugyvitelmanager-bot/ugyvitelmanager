@@ -40,18 +40,22 @@ export default async function AfaPage() {
       revenueByMonth.set(month, { base27: 0, vat27: 0, base18: 0, vat18: 0, base5: 0, vat5: 0, baseAm: 0 })
     }
     const r = revenueByMonth.get(month)!
-    const gross27 = ((d.halas_27 || 0) + (d.bufe_27 || 0)) / 100  // fillér → Ft
-    const gross18 = (d.halas_18 || 0) / 100
-    const gross5  = (d.bufe_5 || 0) / 100
-    const grossAm = ((d.halas_am || 0) + (d.bufe_am || 0)) / 100
+    const gross27Fil = (d.halas_27 || 0) + (d.bufe_27 || 0)  // fillér
+    const gross18Fil = (d.halas_18 || 0)                       // fillér
+    const gross5Fil  = (d.bufe_5  || 0)                        // fillér
+    const grossAmFil = (d.halas_am || 0) + (d.bufe_am || 0)   // fillér
 
-    r.base27 += gross27 / 1.27
-    r.vat27  += gross27 - gross27 / 1.27
-    r.base18 += gross18 / 1.18
-    r.vat18  += gross18 - gross18 / 1.18
-    r.base5  += gross5 / 1.05
-    r.vat5   += gross5 - gross5 / 1.05
-    r.baseAm += grossAm
+    const net27Fil = Math.round(gross27Fil * 100 / 127)
+    const net18Fil = Math.round(gross18Fil * 100 / 118)
+    const net5Fil  = Math.round(gross5Fil  * 100 / 105)
+
+    r.base27 += net27Fil / 100
+    r.vat27  += (gross27Fil - net27Fil) / 100
+    r.base18 += net18Fil / 100
+    r.vat18  += (gross18Fil - net18Fil) / 100
+    r.base5  += net5Fil / 100
+    r.vat5   += (gross5Fil - net5Fil) / 100
+    r.baseAm += grossAmFil / 100
   }
 
   // ─── Visszaigényelhető ÁFA havi csoportosítás ──────────────────────────────

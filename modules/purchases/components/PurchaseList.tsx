@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/finance'
 import {
@@ -19,6 +19,14 @@ interface Props {
   purchases: PurchaseRow[]
   products: ProductOption[]
   units: UnitOption[]
+  totalCount: number
+  currentPage: number
+  pageSize: number
+  initialSearch: string
+  initialPayFilter: string
+  initialSettledFilter: string
+  initialDateFrom: string
+  initialDateTo: string
 }
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -32,8 +40,6 @@ const PAYMENT_STYLE: Record<string, { border: string; badge: string }> = {
   bank_transfer: { border: 'border-l-emerald-400', badge: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
   card:          { border: 'border-l-blue-400',    badge: 'bg-blue-50 text-blue-700 border border-blue-200' },
 }
-
-const PAGE_SIZES = [25, 50, 100, 250, 500]
 
 interface EditState {
   date: string
@@ -72,7 +78,11 @@ function StatusBadge({ purchase }: { purchase: PurchaseRow }) {
   )
 }
 
-export function PurchaseList({ purchases, products, units }: Props) {
+export function PurchaseList({
+  purchases, products, units,
+  totalCount, currentPage, pageSize,
+  initialSearch, initialPayFilter, initialSettledFilter, initialDateFrom, initialDateTo,
+}: Props) {
   const router = useRouter()
 
   // Edit / delete state
@@ -83,45 +93,53 @@ export function PurchaseList({ purchases, products, units }: Props) {
   const [isSaving, setIsSaving]           = useState(false)
   const [lineItemsPurchase, setLineItemsPurchase] = useState<PurchaseRow | null>(null)
 
-  // Szűrők
-  const [search, setSearch]               = useState('')
-  const [payFilter, setPayFilter]         = useState('all')
-  const [statusFilter, setStatusFilter]   = useState('all')
-  const [settledFilter, setSettledFilter] = useState('all')
-  const [dateFrom, setDateFrom]           = useState('')
-  const [dateTo, setDateTo]               = useState('')
+  // Server-side filters — local state mirrors URL; changes trigger navigation
+  const [search, setSearch]               = useState(initialSearch)
+  const [payFilter, setPayFilter]         = useState(initialPayFilter)
+  const [settledFilter, setSettledFilter] = useState(initialSettledFilter)
+  const [dateFrom, setDateFrom]           = useState(initialDateFrom)
+  const [dateTo, setDateTo]               = useState(initialDateTo)
   const [showFilters, setShowFilters]     = useState(false)
 
-  // Lapozás
-  const [pageSize, setPageSize] = useState(50)
-  const [page, setPage]         = useState(0)
+  // Client-side only filter (derived state, no server round-trip needed)
+  const [statusFilter, setStatusFilter]   = useState('all')
 
-  // Szűrt lista
+  // Build URL from current + override values, always resets page to 0
+  const navigate = useCallback((overrides: {
+    q?: string; pay?: string; settled?: string; from?: string; to?: string; page?: number
+  }) => {
+    const p = new URLSearchParams()
+    const q        = overrides.q        !== undefined ? overrides.q        : search
+    const pay      = overrides.pay      !== undefined ? overrides.pay      : payFilter
+    const settled  = overrides.settled  !== undefined ? overrides.settled  : settledFilter
+    const from     = overrides.from     !== undefined ? overrides.from     : dateFrom
+    const to       = overrides.to       !== undefined ? overrides.to       : dateTo
+    const pg       = overrides.page     !== undefined ? overrides.page     : 0
+    if (q)              p.set('q',       q)
+    if (pay !== 'all')  p.set('pay',     pay)
+    if (settled !== 'all') p.set('settled', settled)
+    if (from)           p.set('from',    from)
+    if (to)             p.set('to',      to)
+    if (pg > 0)         p.set('page',    String(pg))
+    const qs = p.toString()
+    router.replace(qs ? `/beszerzes?${qs}` : '/beszerzes')
+  }, [search, payFilter, settledFilter, dateFrom, dateTo, router])
+
+  // statusFilter applies client-side to the already-paginated current page
   const filtered = useMemo(() => {
+    if (statusFilter === 'all') return purchases
     return purchases.filter(p => {
-      if (search && !p.supplier_name.toLowerCase().includes(search.toLowerCase()) &&
-          !(p.invoice_number ?? '').toLowerCase().includes(search.toLowerCase())) return false
-      if (payFilter !== 'all' && p.payment_method !== payFilter) return false
-      if (statusFilter !== 'all') {
-        const hasItems = p.purchase_line_items.length > 0
-        const mismatch = hasItems && p.net_amount !== null && Math.abs(p.net_amount - p.total_net) > 100
-        if (statusFilter === 'fejlec'  && hasItems) return false
-        if (statusFilter === 'teteles' && (!hasItems || mismatch)) return false
-        if (statusFilter === 'elteres' && !mismatch) return false
-      }
-      if (settledFilter === 'yes' && !p.is_settled) return false
-      if (settledFilter === 'no'  && p.is_settled)  return false
-      if (dateFrom && p.date < dateFrom) return false
-      if (dateTo   && p.date > dateTo)   return false
+      const hasItems = p.purchase_line_items.length > 0
+      const mismatch = hasItems && p.net_amount !== null && Math.abs(p.net_amount - p.total_net) > 100
+      if (statusFilter === 'fejlec'  && hasItems) return false
+      if (statusFilter === 'teteles' && (!hasItems || mismatch)) return false
+      if (statusFilter === 'elteres' && !mismatch) return false
       return true
     })
-  }, [purchases, search, payFilter, statusFilter, settledFilter, dateFrom, dateTo])
+  }, [purchases, statusFilter])
 
-  const pageCount  = Math.ceil(filtered.length / pageSize)
-  const safePage   = Math.min(page, Math.max(0, pageCount - 1))
-  const paged      = filtered.slice(safePage * pageSize, (safePage + 1) * pageSize)
-
-  const resetPage = () => setPage(0)
+  const pageCount = Math.ceil(totalCount / pageSize)
+  const paged = filtered
 
   // Handlers
   const handleEditOpen = (p: PurchaseRow) => {
@@ -175,6 +193,32 @@ export function PurchaseList({ purchases, products, units }: Props) {
     settledFilter !== 'all', dateFrom, dateTo,
   ].filter(Boolean).length
 
+  const handleSearchChange = (val: string) => {
+    setSearch(val)
+    navigate({ q: val })
+  }
+  const handlePayFilterChange = (val: string) => {
+    setPayFilter(val)
+    navigate({ pay: val })
+  }
+  const handleSettledFilterChange = (val: string) => {
+    setSettledFilter(val)
+    navigate({ settled: val })
+  }
+  const handleDateFromChange = (val: string) => {
+    setDateFrom(val)
+    navigate({ from: val })
+  }
+  const handleDateToChange = (val: string) => {
+    setDateTo(val)
+    navigate({ to: val })
+  }
+  const handleClearFilters = () => {
+    setSearch(''); setPayFilter('all'); setStatusFilter('all')
+    setSettledFilter('all'); setDateFrom(''); setDateTo('')
+    router.replace('/beszerzes')
+  }
+
   return (
     <>
       <div className="space-y-3">
@@ -187,7 +231,7 @@ export function PurchaseList({ purchases, products, units }: Props) {
               <Input
                 placeholder="Szállító vagy számlaszám..."
                 value={search}
-                onChange={e => { setSearch(e.target.value); resetPage() }}
+                onChange={e => handleSearchChange(e.target.value)}
                 className="pl-8 h-8 text-sm"
               />
             </div>
@@ -214,7 +258,7 @@ export function PurchaseList({ purchases, products, units }: Props) {
                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Fizetési mód</label>
                 <select
                   value={payFilter}
-                  onChange={e => { setPayFilter(e.target.value); resetPage() }}
+                  onChange={e => handlePayFilterChange(e.target.value)}
                   className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 >
                   <option value="all">Mind</option>
@@ -227,7 +271,7 @@ export function PurchaseList({ purchases, products, units }: Props) {
                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Állapot</label>
                 <select
                   value={statusFilter}
-                  onChange={e => { setStatusFilter(e.target.value); resetPage() }}
+                  onChange={e => setStatusFilter(e.target.value)}
                   className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 >
                   <option value="all">Mind</option>
@@ -240,7 +284,7 @@ export function PurchaseList({ purchases, products, units }: Props) {
                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Kiegyenlített</label>
                 <select
                   value={settledFilter}
-                  onChange={e => { setSettledFilter(e.target.value); resetPage() }}
+                  onChange={e => handleSettledFilterChange(e.target.value)}
                   className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 >
                   <option value="all">Mind</option>
@@ -253,7 +297,7 @@ export function PurchaseList({ purchases, products, units }: Props) {
                 <input
                   type="date"
                   value={dateFrom}
-                  onChange={e => { setDateFrom(e.target.value); resetPage() }}
+                  onChange={e => handleDateFromChange(e.target.value)}
                   className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 />
               </div>
@@ -262,18 +306,14 @@ export function PurchaseList({ purchases, products, units }: Props) {
                 <input
                   type="date"
                   value={dateTo}
-                  onChange={e => { setDateTo(e.target.value); resetPage() }}
+                  onChange={e => handleDateToChange(e.target.value)}
                   className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 />
               </div>
               <div className="flex items-end">
                 <Button
                   variant="outline" size="sm"
-                  onClick={() => {
-                    setSearch(''); setPayFilter('all'); setStatusFilter('all')
-                    setSettledFilter('all'); setDateFrom(''); setDateTo('')
-                    resetPage()
-                  }}
+                  onClick={handleClearFilters}
                   className="w-full h-[30px] text-xs text-slate-500"
                 >
                   <X className="w-3 h-3 mr-1" /> Törlés
@@ -459,39 +499,32 @@ export function PurchaseList({ purchases, products, units }: Props) {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="tabular-nums">
-                    {safePage * pageSize + 1}–{Math.min((safePage + 1) * pageSize, filtered.length)} / {filtered.length} bizonylat
-                    {filtered.length < purchases.length && <span className="text-slate-400"> (össz: {purchases.length})</span>}
+                    {currentPage * pageSize + 1}–{Math.min((currentPage + 1) * pageSize, totalCount)} / {totalCount} bizonylat
+                    {statusFilter !== 'all' && <span className="text-slate-400"> ({filtered.length} látható)</span>}
                   </span>
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => setPage(p => Math.max(0, p - 1))}
-                      disabled={safePage === 0}
+                      onClick={() => navigate({ page: Math.max(0, currentPage - 1) })}
+                      disabled={currentPage === 0}
                       className="px-2 py-1 rounded border border-slate-200 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed"
                     >‹</button>
                     {pageCount <= 7
                       ? Array.from({ length: pageCount }, (_, i) => (
-                          <button key={i} onClick={() => setPage(i)}
-                            className={`px-2 py-1 rounded border ${i === safePage ? 'bg-emerald-600 text-white border-emerald-600' : 'border-slate-200 hover:bg-white'}`}>
+                          <button key={i} onClick={() => navigate({ page: i })}
+                            className={`px-2 py-1 rounded border ${i === currentPage ? 'bg-emerald-600 text-white border-emerald-600' : 'border-slate-200 hover:bg-white'}`}>
                             {i + 1}
                           </button>
                         ))
                       : (
-                        <span className="px-2 py-1 text-slate-600 font-medium">{safePage + 1} / {pageCount}</span>
+                        <span className="px-2 py-1 text-slate-600 font-medium">{currentPage + 1} / {pageCount}</span>
                       )
                     }
                     <button
-                      onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
-                      disabled={safePage >= pageCount - 1}
+                      onClick={() => navigate({ page: Math.min(pageCount - 1, currentPage + 1) })}
+                      disabled={currentPage >= pageCount - 1}
                       className="px-2 py-1 rounded border border-slate-200 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed"
                     >›</button>
                   </div>
-                  <select
-                    value={pageSize}
-                    onChange={e => { setPageSize(Number(e.target.value)); resetPage() }}
-                    className="text-xs border border-slate-200 rounded px-1.5 py-1 bg-white"
-                  >
-                    {PAGE_SIZES.map(s => <option key={s} value={s}>{s} / oldal</option>)}
-                  </select>
                 </div>
               </div>
             </>
