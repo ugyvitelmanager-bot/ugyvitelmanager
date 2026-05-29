@@ -17,6 +17,7 @@ import {
   Wallet,
   BookCheck,
   Receipt,
+  Fish,
 } from 'lucide-react'
 
 const navigation = [
@@ -25,6 +26,7 @@ const navigation = [
   { name: 'Beszerzés & Készlet', href: '/beszerzes', icon: ShoppingCart },
   { name: 'Pénztár / Pénzkezelés', href: '/penztar', icon: Wallet },
   { name: 'ÁFA Analitika', href: '/afa', icon: Receipt },
+  { name: 'Chipelt halak', href: '/halak', icon: Fish },
   { name: 'Áruk / Alapanyagok', href: '/products', icon: Package },
   { name: 'Receptek', href: '/recipes', icon: BookOpen },
   { name: 'Termékek (Étlap)', href: '/etlap', icon: UtensilsCrossed },
