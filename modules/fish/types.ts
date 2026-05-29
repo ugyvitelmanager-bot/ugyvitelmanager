@@ -39,7 +39,11 @@ export interface CreateFishData {
   chip_id: string
   name: string
   type: FishType
-  first_caught_at?: string
+  caught_at: string
+  weight_grams: number
+  station: string
+  angler_first_name: string
+  notes?: string
 }
 
 export interface CreateCatchData {

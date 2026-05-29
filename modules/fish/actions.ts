@@ -11,6 +11,7 @@ import type {
   CreateCatchData,
 } from './types'
 
+
 export async function getFishList(): Promise<FishWithStats[]> {
   const supabase = await createClient()
   const { data, error } = await (supabase.from('fish') as any)
@@ -52,15 +53,19 @@ export async function getFishById(id: string): Promise<FishWithCatches | null> {
 export async function createFish(data: CreateFishData) {
   try {
     const supabase = await createClient()
-    const { error } = await (supabase.from('fish') as any).insert({
-      chip_id: data.chip_id.trim(),
-      name: data.name.trim(),
-      type: data.type,
-      first_caught_at: data.first_caught_at || null,
+    const { data: fishId, error } = await (supabase as any).rpc('create_fish_with_catch', {
+      p_chip_id:           data.chip_id,
+      p_name:              data.name,
+      p_type:              data.type,
+      p_caught_at:         data.caught_at,
+      p_weight_grams:      data.weight_grams,
+      p_station:           data.station,
+      p_angler_first_name: data.angler_first_name,
+      p_notes:             data.notes ?? null,
     })
-    if (error) throw error
+    if (error) throw new Error(error.message)
     revalidatePath('/halak')
-    return { success: true as const }
+    return { success: true as const, id: fishId as string }
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Ismeretlen hiba'
     return { success: false as const, error: msg }
