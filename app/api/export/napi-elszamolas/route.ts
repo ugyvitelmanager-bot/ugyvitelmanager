@@ -164,7 +164,13 @@ export async function GET(request: NextRequest) {
   // ------------------------------------------------------------
   // Válasz
   // ------------------------------------------------------------
-  const buffer = await wb.xlsx.writeBuffer()
+  let buffer: ExcelJS.Buffer
+  try {
+    buffer = await wb.xlsx.writeBuffer()
+  } catch {
+    return NextResponse.json({ error: 'Export sikertelen' }, { status: 500 })
+  }
+
   const filename = `konyvelesi_export_${from}_${to}.xlsx`
 
   return new NextResponse(new Uint8Array(buffer as unknown as ArrayBuffer), {

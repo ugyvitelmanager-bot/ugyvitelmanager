@@ -1146,6 +1146,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      replace_daily_closing_expenses: {
+        Args: {
+          p_closing_id: string
+          p_expenses: Json
+        }
+        Returns: undefined
+      }
       increment_product_stock: {
         Args: {
           p_product_id: string

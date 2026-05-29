@@ -223,28 +223,21 @@ export async function saveDailyClosing(
       throw closingError || new Error('Mentési hiba: rekord nem jött vissza')
     }
 
-    // Kiadások csere: töröl mindent, majd újra beszúr
-    await supabase.from('daily_closing_expenses')
-      .delete()
-      .eq('daily_closing_id', closing.id)
-
-    const validExpenses = expenses.filter(
-      (e) => e.amount > 0 || e.note.trim().length > 0
-    )
-
-    if (validExpenses.length > 0) {
-      const expenseRows = validExpenses.map((e, i) => ({
-        daily_closing_id: closing.id,
+    // Kiadások atomikus csere egyetlen tranzakcióban (DELETE + INSERT)
+    const validExpenses = expenses
+      .filter((e) => e.amount > 0 || e.note.trim().length > 0)
+      .map((e, i) => ({
         amount:     ftToFiller(e.amount),
         note:       e.note.trim(),
         sort_order: i,
       }))
 
-      const { error: expError } = await supabase.from('daily_closing_expenses')
-        .insert(expenseRows)
+    const { error: expError } = await supabase.rpc('replace_daily_closing_expenses', {
+      p_closing_id: closing.id,
+      p_expenses:   validExpenses,
+    })
 
-      if (expError) throw expError
-    }
+    if (expError) throw expError
 
     revalidatePath('/napi-elszamolas')
     revalidatePath(`/napi-elszamolas/${date}`)

@@ -42,7 +42,17 @@ export async function POST(request: NextRequest) {
   if (!file) return NextResponse.json({ error: 'Nincs fájl csatolva.' }, { status: 400 })
 
   const wb = new ExcelJS.Workbook()
-  await wb.xlsx.load(await file.arrayBuffer())
+  try {
+    await wb.xlsx.load(await file.arrayBuffer())
+  } catch (err) {
+    const isParseError = err instanceof Error && (
+      err.message.includes('zip') || err.message.includes('corrupt') || err.message.includes('Invalid')
+    )
+    return NextResponse.json(
+      { error: isParseError ? 'Érvénytelen fájlformátum' : 'Export sikertelen' },
+      { status: isParseError ? 400 : 500 },
+    )
+  }
 
   const ws = wb.worksheets[0]
   if (!ws) return NextResponse.json({ error: 'A fájlban nincs munkalap.' }, { status: 400 })
