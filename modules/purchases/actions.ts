@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { Database } from '@/types/database'
+import type { Database } from '@/types'
 
 export async function togglePurchaseSettled(purchaseId: string, settled: boolean) {
   try {

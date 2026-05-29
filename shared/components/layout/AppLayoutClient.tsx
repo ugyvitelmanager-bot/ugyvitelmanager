@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { AppSidebar } from './AppSidebar'
 import { Header } from './Header'
 import type { User } from '@supabase/supabase-js'
-import type { Profile } from '@/types/database'
+import type { Profile } from '@/types'
 
 interface Props {
   user: User | null

@@ -13,7 +13,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import type { User } from '@supabase/supabase-js'
-import type { Profile } from '@/types/database'
+import type { Profile } from '@/types'
 
 interface HeaderProps {
   user: User | null
