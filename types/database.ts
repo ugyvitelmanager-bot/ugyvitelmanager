@@ -1432,7 +1432,7 @@ export type Database = {
       record_purchase_core: {
         Args: {
           p_date: string
-          p_invoice_number: string
+          p_invoice_number: string | null
           p_items: Json
           p_payment_method: string
           p_supplier_name: string
