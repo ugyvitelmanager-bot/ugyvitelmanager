@@ -17,7 +17,11 @@ export function AppLayoutClient({ user, profile, children }: Props) {
 
   return (
     <>
-      <AppSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
+      <AppSidebar
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
+        role={(profile?.role ?? 'admin') as 'admin' | 'buffet_cashier' | 'warden'}
+      />
       <div className="flex flex-1 flex-col overflow-hidden md:pl-64">
         <Header user={user} profile={profile} onMenuClick={() => setMobileOpen(true)} />
         <main className="relative flex-1 overflow-y-auto focus:outline-none">

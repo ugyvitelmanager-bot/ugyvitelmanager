@@ -1,6 +1,24 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+type Role = 'admin' | 'buffet_cashier' | 'warden'
+
+const ROLE_ALLOWED_PREFIXES: Record<Exclude<Role, 'admin'>, string[]> = {
+  buffet_cashier: ['/penztar'],
+  warden: ['/halak'],
+}
+
+function isAllowed(role: Role, pathname: string): boolean {
+  if (role === 'admin') return true
+  return ROLE_ALLOWED_PREFIXES[role].some(prefix => pathname.startsWith(prefix))
+}
+
+function homeFor(role: Role): string {
+  if (role === 'buffet_cashier') return '/penztar'
+  if (role === 'warden') return '/halak'
+  return '/dashboard'
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -53,6 +71,29 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
+  }
+
+  // Role + is_active kikényszerítés
+  if (user && !request.nextUrl.pathname.startsWith('/login')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, is_active')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile || !profile.is_active) {
+      await supabase.auth.signOut()
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
+
+    const role = profile.role as Role
+    if (!isAllowed(role, request.nextUrl.pathname)) {
+      const url = request.nextUrl.clone()
+      url.pathname = homeFor(role)
+      return NextResponse.redirect(url)
+    }
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
