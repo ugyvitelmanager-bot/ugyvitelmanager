@@ -56,6 +56,20 @@ export async function updateSession(request: NextRequest) {
   // supabase.auth.getUser(). A simple mistake could make it very hard to debug
   // issues with users being randomly logged out.
 
+  // Redirect helper: mindig a supabaseResponse-ból másolja át a cookie-kat,
+  // különben elvész egy közben megtörtént token refresh vagy signOut hatása,
+  // és a böngésző inkonzisztens állapotba kerül (véletlen kijelentkezés,
+  // redirect-hurok /login és a célroute között).
+  function redirectWithCookies(pathname: string) {
+    const url = request.nextUrl.clone()
+    url.pathname = pathname
+    const response = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      response.cookies.set(cookie)
+    })
+    return response
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -66,38 +80,40 @@ export async function updateSession(request: NextRequest) {
     !user &&
     !request.nextUrl.pathname.startsWith('/login')
   ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+    return redirectWithCookies('/login')
   }
 
   // If user is signed in and on /login, redirect to dashboard
   if (user && request.nextUrl.pathname.startsWith('/login')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+    return redirectWithCookies('/dashboard')
   }
 
   // Role + is_active kikényszerítés
   if (user && !request.nextUrl.pathname.startsWith('/login')) {
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role, is_active')
       .eq('id', user.id)
       .single()
 
-    if (!profile || !profile.is_active) {
-      await supabase.auth.signOut()
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      return NextResponse.redirect(url)
-    }
+    // PGRST116 = "nincs ilyen sor" (valóban hiányzó profil). Bármilyen más
+    // hiba (hálózat, timeout, Edge cold start) átmeneti lehet — ilyenkor
+    // NEM jelentkeztetjük ki a usert, csak átengedjük a kérést enforcement
+    // nélkül. Enforcement nélkül kijelentkeztetni transient hibára sokkal
+    // rosszabb UX (random redirect-hurok), mint egy pillanatra nem
+    // érvényesíteni a role-korlátozást.
+    const profileFetchFailed = !!profileError && profileError.code !== 'PGRST116'
 
-    const role = profile.role as Role
-    if (!isAllowed(role, request.nextUrl.pathname)) {
-      const url = request.nextUrl.clone()
-      url.pathname = homeFor(role)
-      return NextResponse.redirect(url)
+    if (!profileFetchFailed) {
+      if (!profile || !profile.is_active) {
+        await supabase.auth.signOut()
+        return redirectWithCookies('/login')
+      }
+
+      const role = profile.role as Role
+      if (!isAllowed(role, request.nextUrl.pathname)) {
+        return redirectWithCookies(homeFor(role))
+      }
     }
   }
 
