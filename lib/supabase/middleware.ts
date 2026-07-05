@@ -8,7 +8,12 @@ const ROLE_ALLOWED_PREFIXES: Record<Exclude<Role, 'admin'>, string[]> = {
   warden: ['/halak'],
 }
 
+// Minden bejelentkezett, aktív usernek elérhető, a role-tól függetlenül
+// (saját fiók adatai, nem üzleti/admin funkció).
+const UNIVERSAL_ALLOWED_PREFIXES = ['/profil']
+
 function isAllowed(role: Role, pathname: string): boolean {
+  if (UNIVERSAL_ALLOWED_PREFIXES.some(prefix => pathname.startsWith(prefix))) return true
   if (role === 'admin') return true
   return ROLE_ALLOWED_PREFIXES[role].some(prefix => pathname.startsWith(prefix))
 }

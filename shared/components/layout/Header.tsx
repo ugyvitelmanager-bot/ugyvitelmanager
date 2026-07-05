@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { Menu } from 'lucide-react'
 import { logout } from '@/app/(auth)/login/actions'
 import {
@@ -22,6 +23,7 @@ interface HeaderProps {
 }
 
 export function Header({ user, profile, onMenuClick }: HeaderProps) {
+  const router = useRouter()
   const initials = profile?.full_name
     ? profile.full_name.substring(0, 2).toUpperCase()
     : user?.email?.substring(0, 2).toUpperCase() || 'BM'
@@ -66,6 +68,12 @@ export function Header({ user, profile, onMenuClick }: HeaderProps) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => router.push('/profil')}
+              className="cursor-pointer"
+            >
+              Profil
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => logout()}
               className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
